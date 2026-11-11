@@ -204,6 +204,39 @@ async function getRecordings(sp){
   return recs;
 }
 
+// Audio laden, bei Fehler Fallback über Blob, sonst Diagnose anzeigen
+let triedBlob = false, blobUrl = null;
+function loadAudio(url){
+  triedBlob = false;
+  if(blobUrl){ URL.revokeObjectURL(blobUrl); blobUrl = null; }
+  const a = $("audio"); a.src = url; a.load();
+}
+function showAudioErr(url, detail){
+  const el = $("error"); el.textContent = "Audio konnte nicht geladen werden (" + detail + "). ";
+  const l = document.createElement("a"); l.href = url; l.target = "_blank"; l.rel = "noopener"; l.textContent = "Datei direkt öffnen";
+  el.append(l);
+}
+$("audio").addEventListener("error", async ()=>{
+  const a = $("audio");
+  const url = state.rec ? abs(state.rec.file) : "";
+  if(!url) return;
+  if(!triedBlob){
+    triedBlob = true;
+    try{
+      const r = await fetch(url);
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      let b = await r.blob();
+      if(!b.type.startsWith("audio")) b = new Blob([b], {type:"audio/mpeg"});
+      blobUrl = URL.createObjectURL(b);
+      a.src = blobUrl; a.load(); a.play().catch(()=>{});
+    }catch(e){
+      showAudioErr(url, "Abruf: " + e.message);
+    }
+    return;
+  }
+  showAudioErr(url, "Medienfehler " + (a.error ? a.error.code : "?"));
+});
+
 // Spielablauf
 async function nextRound(){
   $("error").textContent = "";
@@ -222,8 +255,7 @@ async function nextRound(){
       if(!recs.length) continue;
       state.cur = sp; state.rec = pick(recs); state.last = sp.latin;
       const a = $("audio");
-      a.src = abs(state.rec.file);
-      a.load();
+      loadAudio(abs(state.rec.file));
       $("status").textContent = "Welche Art ist das?";
       renderInput();
       a.play().catch(()=>{ $("status").textContent = "Welche Art ist das? Zum Abspielen auf ▶ tippen." });
