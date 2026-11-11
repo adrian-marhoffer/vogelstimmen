@@ -21,9 +21,10 @@ body{background:var(--bg);color:var(--ink);font:17px/1.45 -apple-system,"Segoe U
   padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));}
 main{max-width:520px;margin:0 auto}
 h1{font:600 26px/1.2 Georgia,"Times New Roman",serif;margin:4px 0 2px}
+h2{font:600 20px/1.2 Georgia,"Times New Roman",serif;margin:0 0 10px}
 .sub{color:var(--muted);margin:0 0 16px;font-size:15px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
-label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+label,.lbl{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
 input[type=text],input[type=password]{width:100%;font:inherit;padding:12px;border-radius:10px;
   border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 input:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -33,21 +34,39 @@ button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line
 button:disabled{opacity:.5}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
+.seg{display:flex;gap:6px}
+.seg button{background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:11px 6px;font-weight:500}
+.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.hintline{color:var(--muted);font-size:14px;margin:6px 0 0}
 .mc{display:grid;gap:10px}
 .mc button{background:var(--bg);color:var(--ink);border:1px solid var(--line);text-align:left}
 .mc button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--bg))}
 .mc button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--bg))}
 audio{width:100%;margin:2px 0 12px}
-.switch{display:flex;align-items:center;gap:10px;margin:0}
+.switch{display:flex;align-items:center;gap:10px;margin:0;color:var(--ink);font-size:16px}
 .switch input{width:22px;height:22px}
 .score{display:flex;justify-content:space-between;color:var(--muted);font-size:15px;margin-bottom:10px}
 .result{font-size:18px;font-weight:600;margin:4px 0 6px}
 .result.ok{color:var(--ok)} .result.bad{color:var(--bad)}
+.pts{font-weight:600;margin:0 0 6px}
 .meta{color:var(--muted);font-size:14px;margin:0 0 12px}
-.meta a{color:var(--accent)}
+.meta a,.err a{color:var(--accent)}
 .err{color:var(--bad);font-size:15px;margin:8px 0 0}
+.hint{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.big{font:600 40px/1.1 Georgia,"Times New Roman",serif;margin:4px 0}
+ul.plain{margin:6px 0 12px;padding-left:20px}
+ul.plain li{margin:2px 0}
 .hidden{display:none}
 .stack>*+*{margin-top:10px}
+details.gsel{border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--bg)}
+details.gsel summary{padding:12px 0;cursor:pointer;font-weight:600;list-style-position:inside}
+details.gsel[open] summary{border-bottom:1px solid var(--line)}
+.glist{max-height:340px;overflow-y:auto;margin-top:4px}
+label.grp{display:flex;gap:10px;align-items:flex-start;margin:0;padding:9px 0;border-top:1px solid var(--line);color:var(--ink);font-size:16px}
+label.grp:first-child{border-top:0}
+label.grp input{width:22px;height:22px;flex:none;margin-top:2px}
+label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35}
+.lnk{background:none;border:0;color:var(--muted);font-weight:500;padding:10px;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -55,109 +74,291 @@ audio{width:100%;margin:2px 0 12px}
   <h1>Vogelstimmen</h1>
   <p class="sub">Heimische Arten nach Gehör bestimmen. Aufnahmen von xeno-canto.org.</p>
 
-  <section class="card stack" id="settings">
-    <div>
+  <!-- Einstellungen -->
+  <section id="setup">
+    <div class="card stack">
+      <div>
+        <span class="lbl">Auswahl der Arten</span>
+        <div class="seg" data-k="mode">
+          <button type="button" data-v="level">Nach Schwierigkeit</button>
+          <button type="button" data-v="groups">Nach Gruppen</button>
+        </div>
+      </div>
+      <div id="levelBlock">
+        <span class="lbl">Schwierigkeit</span>
+        <div class="seg" data-k="level">
+          <button type="button" data-v="0">Leicht</button>
+          <button type="button" data-v="1">Mittel</button>
+          <button type="button" data-v="2">Schwer</button>
+        </div>
+        <p class="hintline" id="levelInfo"></p>
+      </div>
+      <div id="groupBlock" class="hidden">
+        <details class="gsel" id="groupDetails">
+          <summary id="groupSummary"></summary>
+          <div class="row" style="margin:10px 0">
+            <button type="button" class="ghost" id="grpAll">Alle</button>
+            <button type="button" class="ghost" id="grpNone">Keine</button>
+          </div>
+          <div class="glist" id="groupList"></div>
+        </details>
+      </div>
+      <div>
+        <span class="lbl">Aufnahmen</span>
+        <div class="seg" data-k="kind">
+          <button type="button" data-v="song">Gesang</button>
+          <button type="button" data-v="call">Rufe</button>
+          <button type="button" data-v="any">Zufällig</button>
+        </div>
+      </div>
+      <div>
+        <span class="lbl">Rundenlänge</span>
+        <div class="seg" data-k="len">
+          <button type="button" data-v="10">10</button>
+          <button type="button" data-v="20">20</button>
+          <button type="button" data-v="all">Alle</button>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="de"> Nur Aufnahmen aus Deutschland</label>
+    </div>
+    <div class="card">
       <label for="key">xeno-canto API-Key (bleibt nur auf diesem Gerät)</label>
       <input id="key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
     </div>
-    <label class="switch"><input type="checkbox" id="mc"> Multiple Choice</label>
-    <label class="switch"><input type="checkbox" id="de"> Nur Aufnahmen aus Deutschland</label>
+    <button id="start">Runde starten</button>
+    <div id="setupErr" class="err"></div>
   </section>
 
+  <!-- Spiel -->
   <section class="card hidden" id="game">
-    <div class="score"><span id="score">0 / 0 richtig</span><span id="streak"></span></div>
+    <div class="score"><span id="progress"></span><span id="score"></span></div>
     <audio id="audio" controls playsinline preload="auto"></audio>
     <div id="status" class="meta"></div>
 
-    <form id="typed" class="stack" autocomplete="off">
-      <input id="answer" type="text" placeholder="Name der Art" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
+    <div class="row" id="aids">
+      <button type="button" class="ghost" id="hintBtn">Tipp</button>
+      <button type="button" class="ghost" id="mcBtn">Multiple Choice</button>
+    </div>
+    <p id="hintBox" class="hint hidden" style="margin:10px 0 0"></p>
+
+    <form id="typed" class="stack" autocomplete="off" style="margin-top:12px">
+      <input id="answer" type="text" placeholder="Name der Art oder der Gruppe" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
       <div class="row">
         <button type="submit" id="check">Prüfen</button>
         <button type="button" class="ghost" id="skip">Weiß nicht</button>
       </div>
     </form>
 
-    <div id="choices" class="mc hidden"></div>
+    <div id="choices" class="mc hidden" style="margin-top:12px"></div>
 
-    <div id="feedback" class="hidden">
+    <div id="feedback" class="hidden" style="margin-top:12px">
       <p class="result" id="verdict"></p>
+      <p class="pts" id="pts"></p>
       <p class="meta" id="info"></p>
       <button id="next">Nächste Aufnahme</button>
     </div>
     <div id="error" class="err"></div>
+    <button type="button" class="lnk" id="quit">Runde beenden</button>
   </section>
 
-  <button id="start">Training starten</button>
+  <!-- Ergebnis -->
+  <section class="card hidden" id="end">
+    <h2>Runde beendet</h2>
+    <p class="big" id="endScore"></p>
+    <p class="meta" id="endPct"></p>
+    <ul class="plain" id="endStats"></ul>
+    <div id="missedBox" class="hidden">
+      <span class="lbl">Noch einmal anschauen</span>
+      <ul class="plain" id="missed"></ul>
+    </div>
+    <p class="meta" id="skippedNote"></p>
+    <div class="stack">
+      <button id="again">Noch einmal (gleiche Einstellungen)</button>
+      <button class="ghost" id="toSetup">Einstellungen ändern</button>
+    </div>
+  </section>
 </main>
 
 <script>
-// [Gattung, Art, deutscher Name, optional: alternative Gattung bei Namensänderungen]
-const SPECIES = [
-["Turdus","merula","Amsel"],["Turdus","philomelos","Singdrossel"],["Turdus","viscivorus","Misteldrossel"],
-["Turdus","pilaris","Wacholderdrossel"],["Turdus","iliacus","Rotdrossel"],["Erithacus","rubecula","Rotkehlchen"],
-["Luscinia","megarhynchos","Nachtigall"],["Luscinia","luscinia","Sprosser"],["Luscinia","svecica","Blaukehlchen"],
-["Phoenicurus","ochruros","Hausrotschwanz"],["Phoenicurus","phoenicurus","Gartenrotschwanz"],
-["Saxicola","rubetra","Braunkehlchen"],["Saxicola","rubicola","Schwarzkehlchen"],["Oenanthe","oenanthe","Steinschmätzer"],
-["Troglodytes","troglodytes","Zaunkönig"],["Prunella","modularis","Heckenbraunelle"],
-["Parus","major","Kohlmeise"],["Cyanistes","caeruleus","Blaumeise"],["Periparus","ater","Tannenmeise"],
-["Lophophanes","cristatus","Haubenmeise"],["Poecile","palustris","Sumpfmeise"],["Poecile","montanus","Weidenmeise"],
-["Aegithalos","caudatus","Schwanzmeise"],["Sitta","europaea","Kleiber"],["Certhia","familiaris","Waldbaumläufer"],
-["Certhia","brachydactyla","Gartenbaumläufer"],["Fringilla","coelebs","Buchfink"],["Fringilla","montifringilla","Bergfink"],
-["Chloris","chloris","Grünfink","Carduelis"],["Carduelis","carduelis","Stieglitz"],["Spinus","spinus","Erlenzeisig","Carduelis"],
-["Linaria","cannabina","Bluthänfling","Carduelis"],["Serinus","serinus","Girlitz"],["Pyrrhula","pyrrhula","Gimpel"],
-["Coccothraustes","coccothraustes","Kernbeißer"],["Loxia","curvirostra","Fichtenkreuzschnabel"],
-["Passer","domesticus","Haussperling"],["Passer","montanus","Feldsperling"],["Emberiza","citrinella","Goldammer"],
-["Emberiza","schoeniclus","Rohrammer"],["Emberiza","calandra","Grauammer"],["Emberiza","hortulana","Ortolan"],
-["Alauda","arvensis","Feldlerche"],["Lullula","arborea","Heidelerche"],["Galerida","cristata","Haubenlerche"],
-["Anthus","trivialis","Baumpieper"],["Anthus","pratensis","Wiesenpieper"],["Motacilla","alba","Bachstelze"],
-["Motacilla","flava","Wiesenschafstelze"],["Motacilla","cinerea","Gebirgsstelze"],["Sturnus","vulgaris","Star"],
-["Oriolus","oriolus","Pirol"],["Lanius","collurio","Neuntöter"],["Garrulus","glandarius","Eichelhäher"],
-["Pica","pica","Elster"],["Corvus","corone","Rabenkrähe"],["Corvus","frugilegus","Saatkrähe"],
-["Coloeus","monedula","Dohle","Corvus"],["Corvus","corax","Kolkrabe"],
-["Sylvia","atricapilla","Mönchsgrasmücke"],["Sylvia","borin","Gartengrasmücke"],
-["Curruca","curruca","Klappergrasmücke","Sylvia"],["Curruca","communis","Dorngrasmücke","Sylvia"],
-["Phylloscopus","collybita","Zilpzalp"],["Phylloscopus","trochilus","Fitis"],["Phylloscopus","sibilatrix","Waldlaubsänger"],
-["Regulus","regulus","Wintergoldhähnchen"],["Regulus","ignicapilla","Sommergoldhähnchen"],
-["Acrocephalus","scirpaceus","Teichrohrsänger"],["Acrocephalus","palustris","Sumpfrohrsänger"],
-["Acrocephalus","arundinaceus","Drosselrohrsänger"],["Acrocephalus","schoenobaenus","Schilfrohrsänger"],
-["Hippolais","icterina","Gelbspötter"],["Locustella","naevia","Feldschwirl"],["Locustella","fluviatilis","Schlagschwirl"],
-["Locustella","luscinioides","Rohrschwirl"],["Ficedula","hypoleuca","Trauerschnäpper"],["Muscicapa","striata","Grauschnäpper"],
-["Strix","aluco","Waldkauz"],["Asio","otus","Waldohreule"],["Bubo","bubo","Uhu"],["Athene","noctua","Steinkauz"],
-["Glaucidium","passerinum","Sperlingskauz"],["Aegolius","funereus","Raufußkauz"],["Tyto","alba","Schleiereule"],
-["Cuculus","canorus","Kuckuck"],["Columba","palumbus","Ringeltaube"],["Columba","oenas","Hohltaube"],
-["Streptopelia","decaocto","Türkentaube"],["Streptopelia","turtur","Turteltaube"],
-["Dendrocopos","major","Buntspecht"],["Dendrocoptes","medius","Mittelspecht","Dendrocopos"],
-["Dryobates","minor","Kleinspecht","Dendrocopos"],["Picus","viridis","Grünspecht"],["Picus","canus","Grauspecht"],
-["Dryocopus","martius","Schwarzspecht"],["Jynx","torquilla","Wendehals"],["Apus","apus","Mauersegler"],
-["Hirundo","rustica","Rauchschwalbe"],["Delichon","urbicum","Mehlschwalbe"],["Buteo","buteo","Mäusebussard"],
-["Milvus","milvus","Rotmilan"],["Falco","tinnunculus","Turmfalke"],["Phasianus","colchicus","Fasan"],
-["Perdix","perdix","Rebhuhn"],["Coturnix","coturnix","Wachtel"],["Crex","crex","Wachtelkönig"],
-["Vanellus","vanellus","Kiebitz"],["Haematopus","ostralegus","Austernfischer"],["Charadrius","dubius","Flussregenpfeifer"],
-["Numenius","arquata","Großer Brachvogel"],["Scolopax","rusticola","Waldschnepfe"],["Anas","platyrhynchos","Stockente"],
-["Fulica","atra","Blässhuhn"],["Gallinula","chloropus","Teichhuhn"],["Ardea","cinerea","Graureiher"],
-["Grus","grus","Kranich"],["Ciconia","ciconia","Weißstorch"],["Chroicocephalus","ridibundus","Lachmöwe","Larus"],
-["Podiceps","cristatus","Haubentaucher"],["Tachybaptus","ruficollis","Zwergtaucher"],["Alcedo","atthis","Eisvogel"],
-["Cinclus","cinclus","Wasseramsel"],["Caprimulgus","europaeus","Ziegenmelker"]
-].map(([g,s,de,alt])=>({g,s,de,alt,latin:g+" "+s}));
+/* ---------- Gruppen (für Tipp, Multiple Choice und "Art"-Antworten) ---------- */
+const GROUPS = {
+  "Drossel":{fam:"Drosselverwandte",al:["Drosseln"]},
+  "Schnäpper":{fam:"Drosselverwandte",al:["Fliegenschnäpper"]},
+  "Rotschwanz":{fam:"Drosselverwandte",al:["Rotschwänze","Rotschwänzchen"]},
+  "Kehlchen/Nachtigallen":{fam:"Drosselverwandte",al:["Kehlchen","Nachtigallen"]},
+  "Schmätzer":{fam:"Drosselverwandte",al:["Kehlchen"]},
+  "Meise":{fam:"Meisenverwandte",al:["Meisen"]},
+  "Kleiber/Baumläufer":{fam:"Meisenverwandte",al:["Baumläufer","Baumkletterer"]},
+  "Fink":{fam:"Finkenverwandte",al:["Finken"]},
+  "Sperling":{fam:"Finkenverwandte",al:["Sperlinge","Spatz","Spatzen"]},
+  "Ammer":{fam:"Finkenverwandte",al:["Ammern"]},
+  "Grasmücke":{fam:"Sänger",al:["Grasmücken"]},
+  "Laubsänger":{fam:"Sänger",al:[]},
+  "Goldhähnchen":{fam:"Sänger",al:[]},
+  "Rohrsänger":{fam:"Sänger",al:[]},
+  "Schwirl":{fam:"Sänger",al:["Schwirle"]},
+  "Lerche":{fam:"Lerchen & Pieper",al:["Lerchen"]},
+  "Pieper":{fam:"Lerchen & Pieper",al:[]},
+  "Stelze":{fam:"Lerchen & Pieper",al:["Stelzen"]},
+  "Rabenvogel":{fam:"Rabenvogel",al:["Rabenvögel","Krähenvogel","Krähenvögel","Krähe"]},
+  "Specht":{fam:"Specht",al:["Spechte"]},
+  "Eule":{fam:"Eule",al:["Eulen","Kauz","Käuze"]},
+  "Taube":{fam:"Taube",al:["Tauben"]},
+  "Schwalbe":{fam:"Schwalbe",al:["Schwalben"]},
+  "Greifvogel":{fam:"Greifvogel",al:["Greifvögel","Greif"]},
+  "Hühnervogel":{fam:"Hühnervogel",al:["Hühnervögel","Huhn","Hühner"]},
+  "Ralle":{fam:"Ralle",al:["Rallen"]},
+  "Watvogel":{fam:"Watvogel",al:["Watvögel","Limikole","Limikolen"]},
+  "Wasservogel":{fam:"Wasservogel",al:["Wasservögel"]},
+  "Schreitvogel":{fam:"Schreitvogel",al:["Schreitvögel","Stelzvogel"]}
+};
+// Gruppen mit "~" sind lose Sammelgruppen (nur Tipp/Multiple Choice, keine Gruppen-Antwort)
 
+/* ---------- Arten, sortiert nach Häufigkeit (Schätzung) ----------
+   Platz 1–40 = leicht, 41–80 = mittel, Rest = schwer.
+   [Gattung, Art, deutscher Name, Gruppe, alternative Gattung, alternative Namen] */
+const RAW = [
+// --- Leicht ---
+["Turdus","merula","Amsel","Drossel"],
+["Parus","major","Kohlmeise","Meise"],
+["Cyanistes","caeruleus","Blaumeise","Meise"],
+["Fringilla","coelebs","Buchfink","Fink"],
+["Erithacus","rubecula","Rotkehlchen","Kehlchen/Nachtigallen"],
+["Passer","domesticus","Haussperling","Sperling",null,["Spatz"]],
+["Sturnus","vulgaris","Star","~Singvogel"],
+["Phylloscopus","collybita","Zilpzalp","Laubsänger"],
+["Sylvia","atricapilla","Mönchsgrasmücke","Grasmücke"],
+["Turdus","philomelos","Singdrossel","Drossel"],
+["Troglodytes","troglodytes","Zaunkönig","~Singvogel"],
+["Prunella","modularis","Heckenbraunelle","~Singvogel"],
+["Chloris","chloris","Grünfink","Fink","Carduelis"],
+["Passer","montanus","Feldsperling","Sperling"],
+["Columba","palumbus","Ringeltaube","Taube"],
+["Pica","pica","Elster","Rabenvogel"],
+["Corvus","corone","Rabenkrähe","Rabenvogel",null,["Aaskrähe","Krähe"]],
+["Garrulus","glandarius","Eichelhäher","Rabenvogel",null,["Häher"]],
+["Dendrocopos","major","Buntspecht","Specht"],
+["Carduelis","carduelis","Stieglitz","Fink",null,["Distelfink"]],
+["Motacilla","alba","Bachstelze","Stelze"],
+["Phoenicurus","ochruros","Hausrotschwanz","Rotschwanz"],
+["Sitta","europaea","Kleiber","Kleiber/Baumläufer"],
+["Periparus","ater","Tannenmeise","Meise"],
+["Poecile","palustris","Sumpfmeise","Meise"],
+["Certhia","brachydactyla","Gartenbaumläufer","Kleiber/Baumläufer"],
+["Phylloscopus","trochilus","Fitis","Laubsänger"],
+["Emberiza","citrinella","Goldammer","Ammer"],
+["Alauda","arvensis","Feldlerche","Lerche"],
+["Buteo","buteo","Mäusebussard","Greifvogel",null,["Bussard"]],
+["Streptopelia","decaocto","Türkentaube","Taube"],
+["Apus","apus","Mauersegler","~Kein Singvogel"],
+["Hirundo","rustica","Rauchschwalbe","Schwalbe"],
+["Delichon","urbicum","Mehlschwalbe","Schwalbe"],
+["Cuculus","canorus","Kuckuck","~Kein Singvogel"],
+["Anas","platyrhynchos","Stockente","Wasservogel"],
+["Falco","tinnunculus","Turmfalke","Greifvogel"],
+["Regulus","regulus","Wintergoldhähnchen","Goldhähnchen"],
+["Sylvia","borin","Gartengrasmücke","Grasmücke"],
+["Luscinia","megarhynchos","Nachtigall","Kehlchen/Nachtigallen"],
+// --- Mittel ---
+["Phoenicurus","phoenicurus","Gartenrotschwanz","Rotschwanz"],
+["Turdus","viscivorus","Misteldrossel","Drossel"],
+["Turdus","pilaris","Wacholderdrossel","Drossel",null,["Krammetsvogel"]],
+["Curruca","communis","Dorngrasmücke","Grasmücke","Sylvia"],
+["Aegithalos","caudatus","Schwanzmeise","Meise"],
+["Certhia","familiaris","Waldbaumläufer","Kleiber/Baumläufer"],
+["Lophophanes","cristatus","Haubenmeise","Meise"],
+["Poecile","montanus","Weidenmeise","Meise"],
+["Regulus","ignicapilla","Sommergoldhähnchen","Goldhähnchen"],
+["Coccothraustes","coccothraustes","Kernbeißer","Fink"],
+["Pyrrhula","pyrrhula","Gimpel","Fink"],
+["Serinus","serinus","Girlitz","Fink"],
+["Linaria","cannabina","Bluthänfling","Fink","Carduelis"],
+["Spinus","spinus","Erlenzeisig","Fink","Carduelis"],
+["Loxia","curvirostra","Fichtenkreuzschnabel","Fink"],
+["Emberiza","schoeniclus","Rohrammer","Ammer"],
+["Anthus","trivialis","Baumpieper","Pieper"],
+["Anthus","pratensis","Wiesenpieper","Pieper"],
+["Ficedula","hypoleuca","Trauerschnäpper","Schnäpper"],
+["Muscicapa","striata","Grauschnäpper","Schnäpper"],
+["Oriolus","oriolus","Pirol","~Singvogel"],
+["Lanius","collurio","Neuntöter","~Singvogel"],
+["Corvus","frugilegus","Saatkrähe","Rabenvogel"],
+["Coloeus","monedula","Dohle","Rabenvogel","Corvus"],
+["Corvus","corax","Kolkrabe","Rabenvogel"],
+["Picus","viridis","Grünspecht","Specht"],
+["Dryocopus","martius","Schwarzspecht","Specht"],
+["Dryobates","minor","Kleinspecht","Specht","Dendrocopos"],
+["Strix","aluco","Waldkauz","Eule"],
+["Asio","otus","Waldohreule","Eule"],
+["Phasianus","colchicus","Fasan","Hühnervogel"],
+["Fulica","atra","Blässhuhn","Ralle",null,["Blässralle"]],
+["Gallinula","chloropus","Teichhuhn","Ralle"],
+["Ardea","cinerea","Graureiher","Schreitvogel",null,["Reiher"]],
+["Ciconia","ciconia","Weißstorch","Schreitvogel",null,["Storch"]],
+["Vanellus","vanellus","Kiebitz","Watvogel"],
+["Milvus","milvus","Rotmilan","Greifvogel"],
+["Acrocephalus","scirpaceus","Teichrohrsänger","Rohrsänger"],
+["Phylloscopus","sibilatrix","Waldlaubsänger","Laubsänger"],
+["Saxicola","rubicola","Schwarzkehlchen","Schmätzer"],
+// --- Schwer ---
+["Turdus","iliacus","Rotdrossel","Drossel"],
+["Luscinia","svecica","Blaukehlchen","Kehlchen/Nachtigallen"],
+["Luscinia","luscinia","Sprosser","Kehlchen/Nachtigallen"],
+["Saxicola","rubetra","Braunkehlchen","Schmätzer"],
+["Oenanthe","oenanthe","Steinschmätzer","Schmätzer"],
+["Fringilla","montifringilla","Bergfink","Fink"],
+["Emberiza","calandra","Grauammer","Ammer"],
+["Emberiza","hortulana","Ortolan","Ammer"],
+["Lullula","arborea","Heidelerche","Lerche"],
+["Galerida","cristata","Haubenlerche","Lerche"],
+["Motacilla","flava","Wiesenschafstelze","Stelze"],
+["Motacilla","cinerea","Gebirgsstelze","Stelze"],
+["Curruca","curruca","Klappergrasmücke","Grasmücke","Sylvia"],
+["Acrocephalus","palustris","Sumpfrohrsänger","Rohrsänger"],
+["Acrocephalus","arundinaceus","Drosselrohrsänger","Rohrsänger"],
+["Acrocephalus","schoenobaenus","Schilfrohrsänger","Rohrsänger"],
+["Hippolais","icterina","Gelbspötter","Rohrsänger"],
+["Locustella","naevia","Feldschwirl","Schwirl"],
+["Locustella","fluviatilis","Schlagschwirl","Schwirl"],
+["Locustella","luscinioides","Rohrschwirl","Schwirl"],
+["Bubo","bubo","Uhu","Eule"],
+["Athene","noctua","Steinkauz","Eule"],
+["Glaucidium","passerinum","Sperlingskauz","Eule"],
+["Aegolius","funereus","Raufußkauz","Eule"],
+["Tyto","alba","Schleiereule","Eule"],
+["Columba","oenas","Hohltaube","Taube"],
+["Streptopelia","turtur","Turteltaube","Taube"],
+["Dendrocoptes","medius","Mittelspecht","Specht","Dendrocopos"],
+["Picus","canus","Grauspecht","Specht"],
+["Jynx","torquilla","Wendehals","Specht"],
+["Perdix","perdix","Rebhuhn","Hühnervogel"],
+["Coturnix","coturnix","Wachtel","Hühnervogel"],
+["Crex","crex","Wachtelkönig","Ralle"],
+["Haematopus","ostralegus","Austernfischer","Watvogel"],
+["Charadrius","dubius","Flussregenpfeifer","Watvogel"],
+["Numenius","arquata","Großer Brachvogel","Watvogel",null,["Brachvogel"]],
+["Scolopax","rusticola","Waldschnepfe","Watvogel",null,["Schnepfe"]],
+["Grus","grus","Kranich","Schreitvogel"],
+["Chroicocephalus","ridibundus","Lachmöwe","Wasservogel","Larus"],
+["Podiceps","cristatus","Haubentaucher","Wasservogel"],
+["Tachybaptus","ruficollis","Zwergtaucher","Wasservogel"],
+["Alcedo","atthis","Eisvogel","~Kein Singvogel"],
+["Cinclus","cinclus","Wasseramsel","~Singvogel"],
+["Caprimulgus","europaeus","Ziegenmelker","~Kein Singvogel"]
+];
+const SPECIES = RAW.map(([g,s,de,grp,alt,al],i)=>({
+  g, s, de, grp, alt:alt||null, al:al||[], latin:g+" "+s, tier: i<40?0 : i<80?1 : 2
+}));
+const LEVEL_NAMES = ["leicht","mittel","schwer"];
+
+/* ---------- Helfer ---------- */
 const $ = id => document.getElementById(id);
 const store = {
   get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } },
   set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
 };
-
-let state = { cur:null, rec:null, answered:false, right:0, total:0, streak:0, last:null };
-const cache = new Map();
-
-// Einstellungen laden
-$("key").value = store.get("xc_key") || "";
-$("mc").checked = store.get("xc_mc") === "1";
-$("de").checked = store.get("xc_de") === "1";
-$("key").addEventListener("change", e => store.set("xc_key", e.target.value.trim()));
-$("mc").addEventListener("change", e => { store.set("xc_mc", e.target.checked?"1":"0"); if(state.cur && !state.answered) renderInput(); });
-$("de").addEventListener("change", e => { store.set("xc_de", e.target.checked?"1":"0"); cache.clear(); });
-
-// Hilfsfunktionen
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const abs = u => !u ? "" : u.startsWith("//") ? "https:"+u : u;
 const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .replace(/ß/g,"ss").replace(/ae/g,"a").replace(/oe/g,"o").replace(/ue/g,"u").replace(/[^a-z]/g,"");
 function lev(a,b){
@@ -168,17 +369,115 @@ function lev(a,b){
     prev=cur; }
   return prev[n];
 }
+const tol = t => t.length>=9 ? 2 : t.length>=5 ? 1 : 0;
+const near = (a,t) => a===t || lev(a,t) <= tol(t);
+
+const isWeak = sp => sp.grp.startsWith("~");
+const grpLabel = sp => isWeak(sp) ? sp.grp.slice(1) : sp.grp;
+const famOf = sp => isWeak(sp) ? sp.grp : GROUPS[sp.grp].fam;
+
+// Gibt "exact", "close", "group", "wrong" oder "empty" zurück
 function judge(input, sp){
   const a = norm(input); if(!a) return "empty";
-  const targets = [norm(sp.de), norm(sp.latin)];
-  if(targets.includes(a)) return "exact";
-  const tol = t => t.length>=9 ? 2 : t.length>=5 ? 1 : 0;
-  return targets.some(t => lev(a,t) <= tol(t)) ? "close" : "wrong";
+  const names = [sp.de, sp.latin, ...sp.al].map(norm);
+  if(names.includes(a)) return "exact";
+  if(names.some(t=>lev(a,t)<=tol(t))) return "close";
+  if(!isWeak(sp)){
+    const gn = [sp.grp, ...GROUPS[sp.grp].al].map(norm);
+    if(gn.some(t=>near(a,t))) return "group";
+  }
+  return "wrong";
 }
-const pick = arr => arr[Math.floor(Math.random()*arr.length)];
-const abs = u => !u ? "" : u.startsWith("//") ? "https:"+u : u;
 
-// xeno-canto
+// Drei Ablenker: zuerst gleiche Gruppe, dann gleiche Familie, dann beliebig
+function distractors(sp){
+  const fam = famOf(sp), out = [];
+  const pools = [
+    SPECIES.filter(x=>x!==sp && x.grp===sp.grp),
+    SPECIES.filter(x=>x!==sp && x.grp!==sp.grp && famOf(x)===fam),
+    SPECIES.filter(x=>x!==sp)
+  ];
+  for(const p of pools){
+    for(const x of shuffle(p)){ if(out.length<3 && !out.includes(x)) out.push(x); }
+  }
+  return out;
+}
+
+/* ---------- Einstellungen ---------- */
+let settings = {mode:"level", level:"0", kind:"any", len:"10", de:false, groups:[]};
+try{ Object.assign(settings, JSON.parse(store.get("xc_settings")||"{}")); }catch(e){}
+if(!Array.isArray(settings.groups)) settings.groups = [];
+const saveSettings = () => store.set("xc_settings", JSON.stringify(settings));
+
+function levelInfo(){
+  const n = t => SPECIES.filter(s=>s.tier===t).length;
+  const l = Number(settings.level);
+  $("levelInfo").textContent = l===0 ? `Die ${n(0)} häufigsten Arten`
+    : l===1 ? `Die nächsten ${n(1)} Arten (Platz 41–80)`
+    : `Die übrigen ${n(2)} Arten`;
+}
+document.querySelectorAll(".seg").forEach(seg=>{
+  const k = seg.dataset.k;
+  const mark = () => seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.v===String(settings[k])));
+  seg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    settings[k] = b.dataset.v; saveSettings(); mark(); if(k==="level") levelInfo(); if(k==="mode") updateMode();
+  }));
+  mark();
+});
+levelInfo();
+
+/* Gruppenauswahl */
+const WEAK_LABEL = {"~Singvogel":"Weitere Singvögel","~Kein Singvogel":"Weitere Nicht-Singvögel"};
+const groupLabel = k => WEAK_LABEL[k] || k;
+const groupKeys = () => { const seen=[]; SPECIES.forEach(s=>{ if(!seen.includes(s.grp)) seen.push(s.grp); }); return seen; };
+function groupInfo(){
+  const keys = groupKeys();
+  const sel = settings.groups.filter(k=>keys.includes(k));
+  const n = SPECIES.filter(s=>sel.includes(s.grp)).length;
+  $("groupSummary").textContent = sel.length
+    ? `Gruppen wählen · ${sel.length} gewählt, ${n} Arten`
+    : "Gruppen wählen · noch keine gewählt";
+}
+function buildGroups(){
+  const box = $("groupList"); box.innerHTML = "";
+  const keys = groupKeys().sort((a,b)=>groupLabel(a).localeCompare(groupLabel(b),"de"));
+  keys.forEach(k=>{
+    const members = SPECIES.filter(s=>s.grp===k);
+    const lab = document.createElement("label"); lab.className = "grp";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.value = k; cb.checked = settings.groups.includes(k);
+    cb.addEventListener("change", ()=>{
+      settings.groups = Array.from(box.querySelectorAll("input:checked")).map(i=>i.value);
+      saveSettings(); groupInfo();
+    });
+    const txt = document.createElement("span");
+    const t = document.createElement("strong"); t.textContent = `${groupLabel(k)} (${members.length})`;
+    const m = document.createElement("small"); m.textContent = members.map(s=>s.de).join(", ");
+    txt.append(t, document.createElement("br"), m);
+    lab.append(cb, txt); box.appendChild(lab);
+  });
+  groupInfo();
+}
+function setAllGroups(v){
+  document.querySelectorAll("#groupList input").forEach(i=>{ i.checked = v; });
+  settings.groups = v ? groupKeys() : [];
+  saveSettings(); groupInfo();
+}
+$("grpAll").addEventListener("click", ()=>setAllGroups(true));
+$("grpNone").addEventListener("click", ()=>setAllGroups(false));
+function updateMode(){
+  const g = settings.mode === "groups";
+  $("levelBlock").classList.toggle("hidden", g);
+  $("groupBlock").classList.toggle("hidden", !g);
+}
+buildGroups(); updateMode();
+
+$("de").checked = !!settings.de;
+$("de").addEventListener("change", e=>{ settings.de = e.target.checked; saveSettings(); });
+$("key").value = store.get("xc_key") || "";
+$("key").addEventListener("change", e => store.set("xc_key", e.target.value.trim()));
+
+/* ---------- xeno-canto ---------- */
+const cache = new Map();
 async function xcQuery(q){
   const key = $("key").value.trim();
   const url = "https://xeno-canto.org/api/3/recordings?query="+encodeURIComponent(q)+"&key="+encodeURIComponent(key);
@@ -188,14 +487,18 @@ async function xcQuery(q){
   return (j.recordings||[]).filter(r=>r.file);
 }
 async function getRecordings(sp){
-  const ck = sp.latin;
+  const kind = settings.kind, de = settings.de;
+  const ck = `${sp.latin}|${kind}|${de?1:0}`;
   if(cache.has(ck)) return cache.get(ck);
-  const country = $("de").checked ? ' cnt:"Germany"' : "";
   const genera = [sp.g].concat(sp.alt?[sp.alt]:[]);
   let recs = [];
-  for(const q of ['q:">C"', ""]){
+  for(const withQ of [true,false]){
     for(const g of genera){
-      recs = await xcQuery(`gen:${g} sp:${sp.s}${country} ${q}`.trim());
+      const parts = [`gen:${g}`, `sp:${sp.s}`];
+      if(kind!=="any") parts.push(`type:${kind}`);
+      if(de) parts.push('cnt:"Germany"');
+      if(withQ) parts.push('q:">C"');
+      recs = await xcQuery(parts.join(" "));
       if(recs.length) break;
     }
     if(recs.length) break;
@@ -204,7 +507,7 @@ async function getRecordings(sp){
   return recs;
 }
 
-// Audio laden, bei Fehler Fallback über Blob, sonst Diagnose anzeigen
+/* ---------- Audio ---------- */
 let triedBlob = false, blobUrl = null;
 function loadAudio(url){
   triedBlob = false;
@@ -229,81 +532,172 @@ $("audio").addEventListener("error", async ()=>{
       if(!b.type.startsWith("audio")) b = new Blob([b], {type:"audio/mpeg"});
       blobUrl = URL.createObjectURL(b);
       a.src = blobUrl; a.load(); a.play().catch(()=>{});
-    }catch(e){
-      showAudioErr(url, "Abruf: " + e.message);
-    }
+    }catch(e){ showAudioErr(url, "Abruf: " + e.message); }
     return;
   }
   showAudioErr(url, "Medienfehler " + (a.error ? a.error.code : "?"));
 });
 
-// Spielablauf
+/* ---------- Spielablauf ---------- */
+let state = null;
+function freshState(){
+  return { queue:[], idx:0, planned:0, asked:0, score:0, skipped:[], missed:[],
+           counts:{full:0, helped:0, group:0, wrong:0},
+           cur:null, rec:null, hint:false, mc:false, answered:false };
+}
+function show(name){
+  ["setup","game","end"].forEach(n=>$(n).classList.toggle("hidden", n!==name));
+}
+function startRound(){
+  const key = $("key").value.trim();
+  if(!key){ $("setupErr").textContent = "Bitte zuerst den API-Key eintragen."; $("key").focus(); return; }
+  $("setupErr").textContent = "";
+  store.set("xc_key", key);
+  let pool;
+  if(settings.mode === "groups"){
+    pool = SPECIES.filter(s=>settings.groups.includes(s.grp));
+    if(!pool.length){
+      $("setupErr").textContent = "Bitte mindestens eine Gruppe wählen.";
+      $("groupDetails").open = true; return;
+    }
+  } else {
+    pool = SPECIES.filter(s=>s.tier===Number(settings.level));
+  }
+  pool = shuffle(pool);
+  const n = settings.len==="all" ? pool.length : Math.min(Number(settings.len), pool.length);
+  state = freshState();
+  state.queue = pool.slice(0, n);
+  state.planned = n;
+  show("game");
+  nextRound();
+}
+
 async function nextRound(){
   $("error").textContent = "";
   $("feedback").classList.add("hidden");
-  $("status").textContent = "Lade Aufnahme …";
   $("audio").pause();
+  $("status").textContent = "Lade Aufnahme …";
   $("typed").classList.add("hidden");
   $("choices").classList.add("hidden");
-  state.answered = false;
+  $("aids").classList.add("hidden");
+  $("hintBox").classList.add("hidden");
+  state.answered = true; // bis eine Aufnahme geladen ist, keine Eingabe
 
   try{
-    for(let tries=0; tries<8; tries++){
-      let sp;
-      do { sp = pick(SPECIES) } while(state.last && sp.latin===state.last && SPECIES.length>1);
+    while(state.idx < state.queue.length){
+      const sp = state.queue[state.idx];
       const recs = await getRecordings(sp);
-      if(!recs.length) continue;
-      state.cur = sp; state.rec = pick(recs); state.last = sp.latin;
-      const a = $("audio");
+      if(!recs.length){ state.idx++; state.planned--; state.skipped.push(sp); continue; }
+      state.idx++;
+      state.cur = sp;
+      state.rec = recs[Math.floor(Math.random()*recs.length)];
+      state.hint = false; state.mc = false; state.answered = false;
+      updateScore();
       loadAudio(abs(state.rec.file));
       $("status").textContent = "Welche Art ist das?";
-      renderInput();
-      a.play().catch(()=>{ $("status").textContent = "Welche Art ist das? Zum Abspielen auf ▶ tippen." });
+      $("aids").classList.remove("hidden");
+      $("hintBtn").disabled = false; $("mcBtn").disabled = false;
+      $("typed").classList.remove("hidden");
+      $("answer").value = ""; $("answer").disabled = false;
+      $("check").disabled = false; $("skip").disabled = false;
+      $("answer").focus({preventScroll:true});
+      $("audio").play().catch(()=>{ $("status").textContent = "Welche Art ist das? Zum Abspielen auf ▶ tippen." });
       return;
     }
-    throw new Error("Keine passende Aufnahme gefunden. Prüfe den API-Key und die Internetverbindung.");
+    showEnd();
   }catch(e){
     $("status").textContent = "";
-    $("error").textContent = e.message;
+    $("error").textContent = e.message + " ";
+    const b = document.createElement("a"); b.href = "#"; b.textContent = "Erneut versuchen";
+    b.addEventListener("click", ev=>{ ev.preventDefault(); nextRound(); });
+    $("error").append(b);
   }
 }
 
-function renderInput(){
-  if($("mc").checked){
-    $("typed").classList.add("hidden");
-    const box = $("choices"); box.innerHTML = ""; box.classList.remove("hidden");
-    const others = SPECIES.filter(s=>s.latin!==state.cur.latin).sort(()=>Math.random()-.5).slice(0,3);
-    [state.cur,...others].sort(()=>Math.random()-.5).forEach(sp=>{
-      const b = document.createElement("button");
-      b.type="button"; b.textContent = sp.de; b.dataset.latin = sp.latin;
-      b.addEventListener("click", ()=>answerMC(b, sp));
-      box.appendChild(b);
-    });
-  } else {
-    $("choices").classList.add("hidden");
-    $("typed").classList.remove("hidden");
-    $("answer").value = ""; $("answer").disabled = false;
-    $("check").disabled = false; $("skip").disabled = false;
-    $("answer").focus({preventScroll:true});
-  }
+function updateScore(){
+  $("progress").textContent = `Frage ${Math.min(state.asked+1, state.planned)} von ${state.planned}`;
+  $("score").textContent = `Punkte: ${state.score}`;
 }
+
+$("hintBtn").addEventListener("click", ()=>{
+  if(state.answered) return;
+  state.hint = true;
+  $("hintBox").textContent = "Tipp: " + grpLabel(state.cur);
+  $("hintBox").classList.remove("hidden");
+  $("hintBtn").disabled = true;
+});
+
+$("mcBtn").addEventListener("click", ()=>{
+  if(state.answered) return;
+  state.mc = true;
+  $("mcBtn").disabled = true;
+  $("typed").classList.add("hidden");
+  const box = $("choices"); box.innerHTML = ""; box.classList.remove("hidden");
+  shuffle([state.cur, ...distractors(state.cur)]).forEach(sp=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = sp.de; b.dataset.latin = sp.latin;
+    b.addEventListener("click", ()=>answerMC(b, sp));
+    box.appendChild(b);
+  });
+  const sk = document.createElement("button");
+  sk.type = "button"; sk.className = "ghost"; sk.textContent = "Weiß nicht";
+  sk.addEventListener("click", ()=>{ lockChoices(); finish("skip",""); });
+  box.appendChild(sk);
+});
+
+function lockChoices(){
+  document.querySelectorAll("#choices button").forEach(b=>{
+    if(b.dataset.latin===state.cur.latin) b.classList.add("right");
+    b.disabled = true;
+  });
+}
+function answerMC(btn, sp){
+  if(state.answered) return;
+  const ok = sp.latin === state.cur.latin;
+  lockChoices();
+  if(!ok) btn.classList.add("wrong");
+  finish(ok ? "exact" : "wrong", sp.de);
+}
+
+$("typed").addEventListener("submit", e=>{
+  e.preventDefault();
+  if(state.answered) return;
+  const t = $("answer").value.trim();
+  const res = judge(t, state.cur);
+  if(res==="empty") return;
+  finish(res, t);
+});
+$("skip").addEventListener("click", ()=>{ if(!state.answered) finish("skip",""); });
 
 function finish(result, typedText){
   if(state.answered) return;
   state.answered = true;
-  state.total++;
-  const ok = result==="exact" || result==="close";
-  if(ok){ state.right++; state.streak++ } else state.streak = 0;
-  $("score").textContent = `${state.right} / ${state.total} richtig`;
-  $("streak").textContent = state.streak>1 ? `Serie: ${state.streak}` : "";
+  state.asked++;
+  const sp = state.cur, helped = state.hint || state.mc;
 
-  const v = $("verdict");
-  v.className = "result " + (ok ? "ok" : "bad");
-  const sp = state.cur;
-  if(result==="exact") v.textContent = `Richtig: ${sp.de}`;
-  else if(result==="close") v.textContent = `Richtig: ${sp.de} (du schriebst „${typedText}“)`;
-  else if(result==="skip") v.textContent = `Das war: ${sp.de}`;
-  else v.textContent = `Leider falsch. Das war: ${sp.de}`;
+  let pts = 0, verdict = "", good = false;
+  if(result==="exact" || result==="close"){
+    pts = helped ? 1 : 3; good = true;
+    verdict = `Richtig: ${sp.de}` + (result==="close" ? ` (du schriebst „${typedText}“)` : "");
+    if(pts===3) state.counts.full++; else state.counts.helped++;
+  } else if(result==="group"){
+    if(state.hint){
+      pts = 0; verdict = `„${typedText}“ war schon der Tipp. Gesucht: ${sp.de}`;
+      state.counts.wrong++;
+    } else {
+      pts = 1; good = true; verdict = `Gruppe richtig („${typedText}“). Gesucht: ${sp.de}`;
+      state.counts.group++;
+    }
+  } else {
+    verdict = result==="skip" ? `Das war: ${sp.de}` : `Leider falsch. Das war: ${sp.de}`;
+    state.counts.wrong++;
+  }
+  state.score += pts;
+  if(pts < 3) state.missed.push(sp);
+  updateScore();
+
+  const v = $("verdict"); v.className = "result " + (good ? "ok" : "bad"); v.textContent = verdict;
+  $("pts").textContent = pts===1 ? "+1 Punkt" : `+${pts} Punkte`;
 
   const r = state.rec, info = $("info");
   info.textContent = "";
@@ -313,39 +707,41 @@ function finish(result, typedText){
   if(r.lic){ info.append(" · "); const a2=document.createElement("a"); a2.href=abs(r.lic); a2.textContent="Lizenz"; a2.target="_blank"; a2.rel="noopener"; info.append(a2); }
 
   $("answer").disabled = true; $("check").disabled = true; $("skip").disabled = true;
+  $("hintBtn").disabled = true; $("mcBtn").disabled = true;
+  const last = state.idx >= state.queue.length;
+  $("next").textContent = last ? "Ergebnis anzeigen" : "Nächste Aufnahme";
   $("feedback").classList.remove("hidden");
   $("next").focus({preventScroll:true});
 }
 
-function answerMC(btn, sp){
-  if(state.answered) return;
-  const ok = sp.latin === state.cur.latin;
-  document.querySelectorAll("#choices button").forEach(b=>{
-    if(b.dataset.latin===state.cur.latin) b.classList.add("right");
-    b.disabled = true;
-  });
-  if(!ok) btn.classList.add("wrong");
-  finish(ok ? "exact" : "wrong", sp.de);
+$("next").addEventListener("click", ()=>{
+  if(state.idx >= state.queue.length) showEnd(); else nextRound();
+});
+$("quit").addEventListener("click", showEnd);
+
+/* ---------- Ergebnis ---------- */
+function showEnd(){
+  $("audio").pause();
+  const max = state.asked * 3;
+  show("end");
+  $("endScore").textContent = max ? `${state.score} von ${max} Punkten` : "Keine Frage beantwortet";
+  $("endPct").textContent = max ? `${Math.round(state.score/max*100)} % · ${settings.mode==="groups" ? "Gruppenauswahl" : "Stufe " + LEVEL_NAMES[Number(settings.level)]}` : "";
+  const c = state.counts, ul = $("endStats"); ul.innerHTML = "";
+  [
+    [`${c.full}× ohne Hilfe richtig (3 Punkte)`, c.full],
+    [`${c.helped}× mit Tipp oder Multiple Choice richtig (1 Punkt)`, c.helped],
+    [`${c.group}× nur die Gruppe richtig (1 Punkt)`, c.group],
+    [`${c.wrong}× falsch oder übersprungen`, c.wrong]
+  ].forEach(([t,n])=>{ if(n>0){ const li=document.createElement("li"); li.textContent=t; ul.appendChild(li); } });
+  const ml = $("missed"); ml.innerHTML = "";
+  state.missed.forEach(sp=>{ const li=document.createElement("li"); li.textContent = sp.de; ml.appendChild(li); });
+  $("missedBox").classList.toggle("hidden", state.missed.length===0);
+  $("skippedNote").textContent = state.skipped.length
+    ? `${state.skipped.length} Art(en) ohne passende Aufnahme übersprungen: ${state.skipped.map(s=>s.de).join(", ")}.` : "";
 }
-
-$("typed").addEventListener("submit", e=>{
-  e.preventDefault();
-  const t = $("answer").value.trim();
-  const res = judge(t, state.cur);
-  if(res==="empty") return;
-  finish(res, t);
-});
-$("skip").addEventListener("click", ()=>finish("skip",""));
-$("next").addEventListener("click", nextRound);
-
-$("start").addEventListener("click", ()=>{
-  const key = $("key").value.trim();
-  if(!key){ $("key").focus(); return; }
-  store.set("xc_key", key);
-  $("game").classList.remove("hidden");
-  $("start").classList.add("hidden");
-  nextRound();
-});
+$("again").addEventListener("click", startRound);
+$("toSetup").addEventListener("click", ()=>show("setup"));
+$("start").addEventListener("click", startRound);
 </script>
 </body>
 </html>
