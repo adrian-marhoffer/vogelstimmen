@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vogelstimmen">
+<title>Vogelstimmen</title>
+<style>
+:root{
+  --bg:#eef2ee; --card:#ffffff; --ink:#1b2a22; --muted:#5d6e64; --line:#cfd9d1;
+  --accent:#2f6b4f; --accent-ink:#ffffff; --ok:#1f7a45; --bad:#b3372f;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#121a15; --card:#1a251e; --ink:#e6efe8; --muted:#92a69a; --line:#2c3b32;
+    --accent:#5fb98a; --accent-ink:#0d1a12; --ok:#6fd49a; --bad:#ff8a80; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.45 -apple-system,"Segoe UI",system-ui,sans-serif;
+  padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));}
+main{max-width:520px;margin:0 auto}
+h1{font:600 26px/1.2 Georgia,"Times New Roman",serif;margin:4px 0 2px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=password]{width:100%;font:inherit;padding:12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+input:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:13px 16px;cursor:pointer;
+  background:var(--accent);color:var(--accent-ink);width:100%}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.mc{display:grid;gap:10px}
+.mc button{background:var(--bg);color:var(--ink);border:1px solid var(--line);text-align:left}
+.mc button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--bg))}
+.mc button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--bg))}
+audio{width:100%;margin:2px 0 12px}
+.switch{display:flex;align-items:center;gap:10px;margin:0}
+.switch input{width:22px;height:22px}
+.score{display:flex;justify-content:space-between;color:var(--muted);font-size:15px;margin-bottom:10px}
+.result{font-size:18px;font-weight:600;margin:4px 0 6px}
+.result.ok{color:var(--ok)} .result.bad{color:var(--bad)}
+.meta{color:var(--muted);font-size:14px;margin:0 0 12px}
+.meta a{color:var(--accent)}
+.err{color:var(--bad);font-size:15px;margin:8px 0 0}
+.hidden{display:none}
+.stack>*+*{margin-top:10px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Vogelstimmen</h1>
+  <p class="sub">Heimische Arten nach Gehör bestimmen. Aufnahmen von xeno-canto.org.</p>
+
+  <section class="card stack" id="settings">
+    <div>
+      <label for="key">xeno-canto API-Key (bleibt nur auf diesem Gerät)</label>
+      <input id="key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <label class="switch"><input type="checkbox" id="mc"> Multiple Choice</label>
+    <label class="switch"><input type="checkbox" id="de"> Nur Aufnahmen aus Deutschland</label>
+  </section>
+
+  <section class="card hidden" id="game">
+    <div class="score"><span id="score">0 / 0 richtig</span><span id="streak"></span></div>
+    <audio id="audio" controls playsinline preload="auto"></audio>
+    <div id="status" class="meta"></div>
+
+    <form id="typed" class="stack" autocomplete="off">
+      <input id="answer" type="text" placeholder="Name der Art" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
+      <div class="row">
+        <button type="submit" id="check">Prüfen</button>
+        <button type="button" class="ghost" id="skip">Weiß nicht</button>
+      </div>
+    </form>
+
+    <div id="choices" class="mc hidden"></div>
+
+    <div id="feedback" class="hidden">
+      <p class="result" id="verdict"></p>
+      <p class="meta" id="info"></p>
+      <button id="next">Nächste Aufnahme</button>
+    </div>
+    <div id="error" class="err"></div>
+  </section>
+
+  <button id="start">Training starten</button>
+</main>
+
+<script>
+// [Gattung, Art, deutscher Name, optional: alternative Gattung bei Namensänderungen]
+const SPECIES = [
+["Turdus","merula","Amsel"],["Turdus","philomelos","Singdrossel"],["Turdus","viscivorus","Misteldrossel"],
+["Turdus","pilaris","Wacholderdrossel"],["Turdus","iliacus","Rotdrossel"],["Erithacus","rubecula","Rotkehlchen"],
+["Luscinia","megarhynchos","Nachtigall"],["Luscinia","luscinia","Sprosser"],["Luscinia","svecica","Blaukehlchen"],
+["Phoenicurus","ochruros","Hausrotschwanz"],["Phoenicurus","phoenicurus","Gartenrotschwanz"],
+["Saxicola","rubetra","Braunkehlchen"],["Saxicola","rubicola","Schwarzkehlchen"],["Oenanthe","oenanthe","Steinschmätzer"],
+["Troglodytes","troglodytes","Zaunkönig"],["Prunella","modularis","Heckenbraunelle"],
+["Parus","major","Kohlmeise"],["Cyanistes","caeruleus","Blaumeise"],["Periparus","ater","Tannenmeise"],
+["Lophophanes","cristatus","Haubenmeise"],["Poecile","palustris","Sumpfmeise"],["Poecile","montanus","Weidenmeise"],
+["Aegithalos","caudatus","Schwanzmeise"],["Sitta","europaea","Kleiber"],["Certhia","familiaris","Waldbaumläufer"],
+["Certhia","brachydactyla","Gartenbaumläufer"],["Fringilla","coelebs","Buchfink"],["Fringilla","montifringilla","Bergfink"],
+["Chloris","chloris","Grünfink","Carduelis"],["Carduelis","carduelis","Stieglitz"],["Spinus","spinus","Erlenzeisig","Carduelis"],
+["Linaria","cannabina","Bluthänfling","Carduelis"],["Serinus","serinus","Girlitz"],["Pyrrhula","pyrrhula","Gimpel"],
+["Coccothraustes","coccothraustes","Kernbeißer"],["Loxia","curvirostra","Fichtenkreuzschnabel"],
+["Passer","domesticus","Haussperling"],["Passer","montanus","Feldsperling"],["Emberiza","citrinella","Goldammer"],
+["Emberiza","schoeniclus","Rohrammer"],["Emberiza","calandra","Grauammer"],["Emberiza","hortulana","Ortolan"],
+["Alauda","arvensis","Feldlerche"],["Lullula","arborea","Heidelerche"],["Galerida","cristata","Haubenlerche"],
+["Anthus","trivialis","Baumpieper"],["Anthus","pratensis","Wiesenpieper"],["Motacilla","alba","Bachstelze"],
+["Motacilla","flava","Wiesenschafstelze"],["Motacilla","cinerea","Gebirgsstelze"],["Sturnus","vulgaris","Star"],
+["Oriolus","oriolus","Pirol"],["Lanius","collurio","Neuntöter"],["Garrulus","glandarius","Eichelhäher"],
+["Pica","pica","Elster"],["Corvus","corone","Rabenkrähe"],["Corvus","frugilegus","Saatkrähe"],
+["Coloeus","monedula","Dohle","Corvus"],["Corvus","corax","Kolkrabe"],
+["Sylvia","atricapilla","Mönchsgrasmücke"],["Sylvia","borin","Gartengrasmücke"],
+["Curruca","curruca","Klappergrasmücke","Sylvia"],["Curruca","communis","Dorngrasmücke","Sylvia"],
+["Phylloscopus","collybita","Zilpzalp"],["Phylloscopus","trochilus","Fitis"],["Phylloscopus","sibilatrix","Waldlaubsänger"],
+["Regulus","regulus","Wintergoldhähnchen"],["Regulus","ignicapilla","Sommergoldhähnchen"],
+["Acrocephalus","scirpaceus","Teichrohrsänger"],["Acrocephalus","palustris","Sumpfrohrsänger"],
+["Acrocephalus","arundinaceus","Drosselrohrsänger"],["Acrocephalus","schoenobaenus","Schilfrohrsänger"],
+["Hippolais","icterina","Gelbspötter"],["Locustella","naevia","Feldschwirl"],["Locustella","fluviatilis","Schlagschwirl"],
+["Locustella","luscinioides","Rohrschwirl"],["Ficedula","hypoleuca","Trauerschnäpper"],["Muscicapa","striata","Grauschnäpper"],
+["Strix","aluco","Waldkauz"],["Asio","otus","Waldohreule"],["Bubo","bubo","Uhu"],["Athene","noctua","Steinkauz"],
+["Glaucidium","passerinum","Sperlingskauz"],["Aegolius","funereus","Raufußkauz"],["Tyto","alba","Schleiereule"],
+["Cuculus","canorus","Kuckuck"],["Columba","palumbus","Ringeltaube"],["Columba","oenas","Hohltaube"],
+["Streptopelia","decaocto","Türkentaube"],["Streptopelia","turtur","Turteltaube"],
+["Dendrocopos","major","Buntspecht"],["Dendrocoptes","medius","Mittelspecht","Dendrocopos"],
+["Dryobates","minor","Kleinspecht","Dendrocopos"],["Picus","viridis","Grünspecht"],["Picus","canus","Grauspecht"],
+["Dryocopus","martius","Schwarzspecht"],["Jynx","torquilla","Wendehals"],["Apus","apus","Mauersegler"],
+["Hirundo","rustica","Rauchschwalbe"],["Delichon","urbicum","Mehlschwalbe"],["Buteo","buteo","Mäusebussard"],
+["Milvus","milvus","Rotmilan"],["Falco","tinnunculus","Turmfalke"],["Phasianus","colchicus","Fasan"],
+["Perdix","perdix","Rebhuhn"],["Coturnix","coturnix","Wachtel"],["Crex","crex","Wachtelkönig"],
+["Vanellus","vanellus","Kiebitz"],["Haematopus","ostralegus","Austernfischer"],["Charadrius","dubius","Flussregenpfeifer"],
+["Numenius","arquata","Großer Brachvogel"],["Scolopax","rusticola","Waldschnepfe"],["Anas","platyrhynchos","Stockente"],
+["Fulica","atra","Blässhuhn"],["Gallinula","chloropus","Teichhuhn"],["Ardea","cinerea","Graureiher"],
+["Grus","grus","Kranich"],["Ciconia","ciconia","Weißstorch"],["Chroicocephalus","ridibundus","Lachmöwe","Larus"],
+["Podiceps","cristatus","Haubentaucher"],["Tachybaptus","ruficollis","Zwergtaucher"],["Alcedo","atthis","Eisvogel"],
+["Cinclus","cinclus","Wasseramsel"],["Caprimulgus","europaeus","Ziegenmelker"]
+].map(([g,s,de,alt])=>({g,s,de,alt,latin:g+" "+s}));
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } },
+  set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+};
+
+let state = { cur:null, rec:null, answered:false, right:0, total:0, streak:0, last:null };
+const cache = new Map();
+
+// Einstellungen laden
+$("key").value = store.get("xc_key") || "";
+$("mc").checked = store.get("xc_mc") === "1";
+$("de").checked = store.get("xc_de") === "1";
+$("key").addEventListener("change", e => store.set("xc_key", e.target.value.trim()));
+$("mc").addEventListener("change", e => { store.set("xc_mc", e.target.checked?"1":"0"); if(state.cur && !state.answered) renderInput(); });
+$("de").addEventListener("change", e => { store.set("xc_de", e.target.checked?"1":"0"); cache.clear(); });
+
+// Hilfsfunktionen
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/ß/g,"ss").replace(/ae/g,"a").replace(/oe/g,"o").replace(/ue/g,"u").replace(/[^a-z]/g,"");
+function lev(a,b){
+  const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){ const cur=[i];
+    for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur; }
+  return prev[n];
+}
+function judge(input, sp){
+  const a = norm(input); if(!a) return "empty";
+  const targets = [norm(sp.de), norm(sp.latin)];
+  if(targets.includes(a)) return "exact";
+  const tol = t => t.length>=9 ? 2 : t.length>=5 ? 1 : 0;
+  return targets.some(t => lev(a,t) <= tol(t)) ? "close" : "wrong";
+}
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const abs = u => !u ? "" : u.startsWith("//") ? "https:"+u : u;
+
+// xeno-canto
+async function xcQuery(q){
+  const key = $("key").value.trim();
+  const url = "https://xeno-canto.org/api/3/recordings?query="+encodeURIComponent(q)+"&key="+encodeURIComponent(key);
+  const res = await fetch(url);
+  let j; try{ j = await res.json() }catch(e){ throw new Error("Unerwartete Antwort von xeno-canto (HTTP "+res.status+").") }
+  if(j.error) throw new Error(j.message || j.error);
+  return (j.recordings||[]).filter(r=>r.file);
+}
+async function getRecordings(sp){
+  const ck = sp.latin;
+  if(cache.has(ck)) return cache.get(ck);
+  const country = $("de").checked ? ' cnt:"Germany"' : "";
+  const genera = [sp.g].concat(sp.alt?[sp.alt]:[]);
+  let recs = [];
+  for(const q of ['q:">C"', ""]){
+    for(const g of genera){
+      recs = await xcQuery(`gen:${g} sp:${sp.s}${country} ${q}`.trim());
+      if(recs.length) break;
+    }
+    if(recs.length) break;
+  }
+  cache.set(ck, recs);
+  return recs;
+}
+
+// Spielablauf
+async function nextRound(){
+  $("error").textContent = "";
+  $("feedback").classList.add("hidden");
+  $("status").textContent = "Lade Aufnahme …";
+  $("audio").pause();
+  $("typed").classList.add("hidden");
+  $("choices").classList.add("hidden");
+  state.answered = false;
+
+  try{
+    for(let tries=0; tries<8; tries++){
+      let sp;
+      do { sp = pick(SPECIES) } while(state.last && sp.latin===state.last && SPECIES.length>1);
+      const recs = await getRecordings(sp);
+      if(!recs.length) continue;
+      state.cur = sp; state.rec = pick(recs); state.last = sp.latin;
+      const a = $("audio");
+      a.src = abs(state.rec.file);
+      a.load();
+      $("status").textContent = "Welche Art ist das?";
+      renderInput();
+      a.play().catch(()=>{ $("status").textContent = "Welche Art ist das? Zum Abspielen auf ▶ tippen." });
+      return;
+    }
+    throw new Error("Keine passende Aufnahme gefunden. Prüfe den API-Key und die Internetverbindung.");
+  }catch(e){
+    $("status").textContent = "";
+    $("error").textContent = e.message;
+  }
+}
+
+function renderInput(){
+  if($("mc").checked){
+    $("typed").classList.add("hidden");
+    const box = $("choices"); box.innerHTML = ""; box.classList.remove("hidden");
+    const others = SPECIES.filter(s=>s.latin!==state.cur.latin).sort(()=>Math.random()-.5).slice(0,3);
+    [state.cur,...others].sort(()=>Math.random()-.5).forEach(sp=>{
+      const b = document.createElement("button");
+      b.type="button"; b.textContent = sp.de; b.dataset.latin = sp.latin;
+      b.addEventListener("click", ()=>answerMC(b, sp));
+      box.appendChild(b);
+    });
+  } else {
+    $("choices").classList.add("hidden");
+    $("typed").classList.remove("hidden");
+    $("answer").value = ""; $("answer").disabled = false;
+    $("check").disabled = false; $("skip").disabled = false;
+    $("answer").focus({preventScroll:true});
+  }
+}
+
+function finish(result, typedText){
+  if(state.answered) return;
+  state.answered = true;
+  state.total++;
+  const ok = result==="exact" || result==="close";
+  if(ok){ state.right++; state.streak++ } else state.streak = 0;
+  $("score").textContent = `${state.right} / ${state.total} richtig`;
+  $("streak").textContent = state.streak>1 ? `Serie: ${state.streak}` : "";
+
+  const v = $("verdict");
+  v.className = "result " + (ok ? "ok" : "bad");
+  const sp = state.cur;
+  if(result==="exact") v.textContent = `Richtig: ${sp.de}`;
+  else if(result==="close") v.textContent = `Richtig: ${sp.de} (du schriebst „${typedText}“)`;
+  else if(result==="skip") v.textContent = `Das war: ${sp.de}`;
+  else v.textContent = `Leider falsch. Das war: ${sp.de}`;
+
+  const r = state.rec, info = $("info");
+  info.textContent = "";
+  info.append(sp.latin + " · " + (r.type||"") + (r.cnt?` · ${r.cnt}`:"") + " · Aufnahme: " + (r.rec||"unbekannt") + " · ");
+  const a1 = document.createElement("a"); a1.href = "https://xeno-canto.org/"+r.id; a1.textContent = "XC"+r.id; a1.target="_blank"; a1.rel="noopener";
+  info.append(a1);
+  if(r.lic){ info.append(" · "); const a2=document.createElement("a"); a2.href=abs(r.lic); a2.textContent="Lizenz"; a2.target="_blank"; a2.rel="noopener"; info.append(a2); }
+
+  $("answer").disabled = true; $("check").disabled = true; $("skip").disabled = true;
+  $("feedback").classList.remove("hidden");
+  $("next").focus({preventScroll:true});
+}
+
+function answerMC(btn, sp){
+  if(state.answered) return;
+  const ok = sp.latin === state.cur.latin;
+  document.querySelectorAll("#choices button").forEach(b=>{
+    if(b.dataset.latin===state.cur.latin) b.classList.add("right");
+    b.disabled = true;
+  });
+  if(!ok) btn.classList.add("wrong");
+  finish(ok ? "exact" : "wrong", sp.de);
+}
+
+$("typed").addEventListener("submit", e=>{
+  e.preventDefault();
+  const t = $("answer").value.trim();
+  const res = judge(t, state.cur);
+  if(res==="empty") return;
+  finish(res, t);
+});
+$("skip").addEventListener("click", ()=>finish("skip",""));
+$("next").addEventListener("click", nextRound);
+
+$("start").addEventListener("click", ()=>{
+  const key = $("key").value.trim();
+  if(!key){ $("key").focus(); return; }
+  store.set("xc_key", key);
+  $("game").classList.remove("hidden");
+  $("start").classList.add("hidden");
+  nextRound();
+});
+</script>
+</body>
+</html>
