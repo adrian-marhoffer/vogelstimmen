@@ -66,6 +66,21 @@ label.grp{display:flex;gap:10px;align-items:flex-start;margin:0;padding:9px 0;bo
 label.grp:first-child{border-top:0}
 label.grp input{width:22px;height:22px;flex:none;margin-top:2px}
 label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.sugg button{width:auto;padding:7px 12px;font-weight:500;font-size:15px;border-radius:16px;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.sugg small{color:var(--muted);font-weight:400}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:5px 0 3px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.lo{background:var(--bad)} .bar i.hi{background:var(--ok)}
+.statrow{padding:9px 0;border-top:1px solid var(--line)}
+.statrow:first-child{border-top:0}
+.statrow .top{display:flex;justify-content:space-between;gap:8px}
+.statrow small{color:var(--muted);font-size:13px}
+textarea{width:100%;font:13px/1.3 ui-monospace,Menlo,Consolas,monospace;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin:8px 0}
+.diff h4{margin:10px 0 2px;font-size:16px}
+.diff h4:first-child{margin-top:0}
+.diff p{margin:2px 0 8px;font-size:15px}
+.diff .pair{border-left:3px solid var(--accent);padding-left:10px}
 .lnk{background:none;border:0;color:var(--muted);font-weight:500;padding:10px;text-decoration:underline}
 </style>
 </head>
@@ -116,8 +131,9 @@ label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35
         <div class="seg" data-k="len">
           <button type="button" data-v="10">10</button>
           <button type="button" data-v="20">20</button>
-          <button type="button" data-v="all">Alle</button>
+          <button type="button" data-v="endless">Endlos</button>
         </div>
+        <p class="hintline" id="lenInfo"></p>
       </div>
       <label class="switch"><input type="checkbox" id="de"> Nur Aufnahmen aus Deutschland</label>
     </div>
@@ -126,6 +142,7 @@ label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35
       <input id="key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
     </div>
     <button id="start">Runde starten</button>
+    <button class="ghost" id="openStats" style="margin-top:10px">Auswertung ansehen</button>
     <div id="setupErr" class="err"></div>
   </section>
 
@@ -142,7 +159,8 @@ label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35
     <p id="hintBox" class="hint hidden" style="margin:10px 0 0"></p>
 
     <form id="typed" class="stack" autocomplete="off" style="margin-top:12px">
-      <input id="answer" type="text" placeholder="Name der Art oder der Gruppe" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done">
+      <input id="answer" type="text" placeholder="Name der Art oder der Gruppe" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
+      <div id="sugg" class="sugg hidden"></div>
       <div class="row">
         <button type="submit" id="check">Prüfen</button>
         <button type="button" class="ghost" id="skip">Weiß nicht</button>
@@ -155,10 +173,49 @@ label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35
       <p class="result" id="verdict"></p>
       <p class="pts" id="pts"></p>
       <p class="meta" id="info"></p>
+      <button type="button" class="ghost hidden" id="diffBtn" style="margin-bottom:10px">Unterschiede anzeigen</button>
+      <div id="diffBox" class="hint diff hidden" style="margin-bottom:12px"></div>
       <button id="next">Nächste Aufnahme</button>
     </div>
     <div id="error" class="err"></div>
     <button type="button" class="lnk" id="quit">Runde beenden</button>
+  </section>
+
+  <!-- Auswertung -->
+  <section class="hidden" id="stats">
+    <div class="card">
+      <h2>Auswertung</h2>
+      <p class="meta" id="statSummary"></p>
+      <span class="lbl">Sortierung</span>
+      <div class="seg" data-k="sort">
+        <button type="button" data-v="weak">Schwächste zuerst</button>
+        <button type="button" data-v="alpha">A–Z</button>
+        <button type="button" data-v="count">Meist geübt</button>
+      </div>
+      <div id="statList" style="margin-top:12px"></div>
+      <details class="gsel" id="untouched" style="margin-top:12px">
+        <summary id="untouchedSum"></summary>
+        <p class="meta" id="untouchedList" style="margin-top:10px"></p>
+      </details>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px">Letzte Runden</h2>
+      <ul class="plain" id="roundList"></ul>
+    </div>
+    <div class="card">
+      <details class="gsel">
+        <summary>Backup &amp; Zurücksetzen</summary>
+        <p class="meta" style="margin-top:10px">Die Auswertung liegt nur in diesem Browser. Mit dem Export kannst du sie sichern oder in einen anderen Browser übertragen (z. B. von Safari in die Home-Bildschirm-App).</p>
+        <textarea id="backupBox" rows="4" placeholder="Hier erscheint der Export, oder füge hier einen Export zum Importieren ein." spellcheck="false" autocapitalize="none" autocorrect="off"></textarea>
+        <div class="row">
+          <button type="button" class="ghost" id="exportBtn">Exportieren</button>
+          <button type="button" class="ghost" id="importBtn">Importieren</button>
+        </div>
+        <button type="button" class="ghost" id="resetBtn" style="margin:10px 0 12px">Auswertung zurücksetzen</button>
+        <p class="meta" id="backupMsg"></p>
+      </details>
+    </div>
+    <button class="ghost" id="statBack">Zurück</button>
   </section>
 
   <!-- Ergebnis -->
@@ -175,6 +232,7 @@ label.grp small{display:block;color:var(--muted);font-size:13px;line-height:1.35
     <div class="stack">
       <button id="again">Noch einmal (gleiche Einstellungen)</button>
       <button class="ghost" id="toSetup">Einstellungen ändern</button>
+      <button class="ghost" id="endToStats">Auswertung ansehen</button>
     </div>
   </section>
 </main>
@@ -389,26 +447,34 @@ function judge(input, sp){
   return "wrong";
 }
 
-// Drei Ablenker: zuerst gleiche Gruppe, dann gleiche Familie, dann beliebig
+// Ablenker für Multiple Choice: bevorzugt dieselbe Gruppe (passt zum Tipp), dann verwandte Gruppen,
+// dann ähnliche Vogelklasse; innerhalb davon bevorzugt dieselbe Gattung und Schwierigkeitsstufe.
+const NON_PASSERINE = new Set(["Specht","Eule","Taube","Greifvogel","Hühnervogel","Ralle","Watvogel","Wasservogel","Schreitvogel","~Kein Singvogel"]);
 function distractors(sp){
-  const fam = famOf(sp), out = [];
-  const pools = [
-    SPECIES.filter(x=>x!==sp && x.grp===sp.grp),
-    SPECIES.filter(x=>x!==sp && x.grp!==sp.grp && famOf(x)===fam),
-    SPECIES.filter(x=>x!==sp)
-  ];
-  for(const p of pools){
-    for(const x of shuffle(p)){ if(out.length<3 && !out.includes(x)) out.push(x); }
-  }
-  return out;
+  const fam = famOf(sp), pas = !NON_PASSERINE.has(sp.grp);
+  const score = x =>
+    (x.grp===sp.grp ? 100 : 0) +
+    (famOf(x)===fam ? 50 : 0) +
+    ((!NON_PASSERINE.has(x.grp))===pas ? 20 : 0) +
+    ((x.g===sp.g || (sp.alt && x.g===sp.alt) || (x.alt && x.alt===sp.g)) ? 15 : 0) +
+    (x.tier===sp.tier ? 5 : 0) +
+    Math.random()*5;
+  return SPECIES.filter(x=>x!==sp)
+    .map(x=>[score(x),x]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(e=>e[1]);
 }
 
 /* ---------- Einstellungen ---------- */
-let settings = {mode:"level", level:"0", kind:"any", len:"10", de:false, groups:[]};
+let settings = {mode:"level", level:"0", kind:"any", len:"10", de:false, groups:[], sort:"weak"};
 try{ Object.assign(settings, JSON.parse(store.get("xc_settings")||"{}")); }catch(e){}
 if(!Array.isArray(settings.groups)) settings.groups = [];
+if(!["10","20","endless"].includes(settings.len)) settings.len = "10";
 const saveSettings = () => store.set("xc_settings", JSON.stringify(settings));
 
+function lenInfo(){
+  $("lenInfo").textContent = settings.len==="endless"
+    ? "Läuft, bis du „Runde beenden“ antippst. Jede Frage wird unabhängig zufällig gezogen, Wiederholungen sind möglich."
+    : "";
+}
 function levelInfo(){
   const n = t => SPECIES.filter(s=>s.tier===t).length;
   const l = Number(settings.level);
@@ -420,11 +486,11 @@ document.querySelectorAll(".seg").forEach(seg=>{
   const k = seg.dataset.k;
   const mark = () => seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.v===String(settings[k])));
   seg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-    settings[k] = b.dataset.v; saveSettings(); mark(); if(k==="level") levelInfo(); if(k==="mode") updateMode();
+    settings[k] = b.dataset.v; saveSettings(); mark(); if(k==="level") levelInfo(); if(k==="len") lenInfo(); if(k==="mode") updateMode(); if(k==="sort") renderStats();
   }));
   mark();
 });
-levelInfo();
+levelInfo(); lenInfo();
 
 /* Gruppenauswahl */
 const WEAK_LABEL = {"~Singvogel":"Weitere Singvögel","~Kein Singvogel":"Weitere Nicht-Singvögel"};
@@ -538,15 +604,309 @@ $("audio").addEventListener("error", async ()=>{
   showAudioErr(url, "Medienfehler " + (a.error ? a.error.code : "?"));
 });
 
+
+/* ---------- Merkmale der Laute (Stichworte als Gedächtnisstütze) ----------
+   [Gesang, Ruf] – leer = nicht typisch */
+const SOUND = {
+"Amsel":["Ruhige, flötende Strophen mit Pausen, tief und weich","Hektisches „dixdixdix“ bei Alarm, „pink-pink“ am Abend"],
+"Kohlmeise":["Zweisilbig und rhythmisch: „zi-zi-bä, zi-zi-bä“","Vielfältig: „pink“, „ziä“, scheltende Reihen"],
+"Blaumeise":["Hohe, feine Silben mit schnellem Triller am Ende","Dünnes „zi-zi-zi“, scheltendes Schnarren"],
+"Buchfink":["Abfallende, schmetternde Strophe mit Schlussschnörkel","Metallisches „pink“; „hüit“ ist der Regenruf"],
+"Rotkehlchen":["Perlend und wehmütig, hohe und tiefe Teile wechseln; singt auch nachts","Hartes, tickendes „tick-tick“"],
+"Haussperling":["Kein echter Gesang, nur einfaches Tschilpen","„tschilp“, schnarrende Reihen"],
+"Star":["Lange Mischung aus Pfeifen, Klappern und Schnarren; imitiert andere Arten","Schnarrendes „kerrr“, ziehendes „spiet“"],
+"Zilpzalp":["Monotones „zilp-zalp-zilp-zalp“, ohne Melodie","Weiches, ansteigendes „huit“"],
+"Mönchsgrasmücke":["Leises Schwätzen, dann lauter, flötender Schluss","Hartes „tak-tak“"],
+"Singdrossel":["Jedes Motiv 2–4× wiederholt, laut und klar","Kurzes „zip“, besonders im Flug"],
+"Zaunkönig":["Sehr laut und schmetternd, mit schnellem Triller","Scharfes, schnarrendes „zerr“ und „tek-tek“"],
+"Heckenbraunelle":["Hohes, hastiges Zwitschern ohne Pausen","Dünnes, scharfes „tsii“"],
+"Grünfink":["Trillern, Schnurren und ein gedehntes „dschwiii“","Gedehntes, nasales „dschwii“, Reihen „gügügü“"],
+"Feldsperling":["Tschilpender als beim Haussperling, etwas heller","Hartes „teck“ im Flug"],
+"Ringeltaube":["Dumpfes, rhythmisches „gu-gruu-gu, gu-gu“","Flügelklatschen beim Auffliegen"],
+"Elster":["Leises Plaudern, selten","Schnelle „schak-schak-schak“-Reihen"],
+"Rabenkrähe":["","Heiseres „krah“, meist 2–3 Rufe"],
+"Eichelhäher":["Leises Plaudern und Imitationen","Schrilles, kratzendes „rätsch“"],
+"Buntspecht":["Kurzer, kräftiger Trommelwirbel am Holz","Scharfes „kix“"],
+"Stieglitz":["Helles Perlen und Zwitschern","Helles „stig-lit“ im Flug"],
+"Bachstelze":["Gesang aus Rufen zusammengesetzt","„zi-wit“ oder „zi-lip“ im Flug"],
+"Hausrotschwanz":["Kurze Strophe mit knirschendem Mittelteil wie Kies","„fiit“ und hartes „tek-tek“"],
+"Kleiber":["Laute, klare Pfeifreihen „twi-twi-twi“","Kräftiges „tuit“"],
+"Tannenmeise":["Wie eine höhere, schnellere und feinere Kohlmeise","Hohes „tüi“"],
+"Sumpfmeise":["Einfache „zip-zip“-Reihen oder „dididi“","Scharfes „pitschü“"],
+"Gartenbaumläufer":["Kurze, hohe Strophe","Kurzes „tit“, einzeln"],
+"Fitis":["Weich abfallendes, sanftes Perlen","Weiches „huit“"],
+"Goldammer":["„Si-si-si-si-si-sii-düh“ mit langem Schlusston","Hartes „zick“"],
+"Feldlerche":["Langer, anhaltender Trillergesang im Singflug","Raues „prrit“"],
+"Mäusebussard":["","Gedehntes, katzenhaftes „hiääh“"],
+"Türkentaube":["Dreisilbiges „gu-guuu-gu“","Nasales Schrillen beim Landen"],
+"Mauersegler":["","Schrille „srii“-Rufe im Flug"],
+"Rauchschwalbe":["Fließendes Zwitschern mit schnurrenden Teilen","„witt-witt“, bei Alarm „flit“"],
+"Mehlschwalbe":["Kurzes, raues Zwitschern","Raues „prrit“"],
+"Kuckuck":["„Ku-kuh“ vom Männchen","Weibchen: bubbernd-kichernd"],
+"Stockente":["","Weibchen: lautes „Quack“; Männchen leises „räb“"],
+"Turmfalke":["","Schnelle „kikikiki“-Reihe"],
+"Wintergoldhähnchen":["Sehr hohe, feine Strophe mit Schnörkel am Ende","Sehr hohes „sisisi“"],
+"Gartengrasmücke":["Lange, gleichmäßig fließende, ruhige Strophe","„tak“ und „wäd-wäd“"],
+"Nachtigall":["Laut und abwechslungsreich, mit gedehntem Schluchzen; auch nachts","„huit“, „tack“"],
+"Gartenrotschwanz":["Zarte, kurze Strophe, beginnt mit „iii-trü-trü“","„wit-tick-tick“"],
+"Misteldrossel":["Kurze, laute Strophen mit langen Pausen","Schnarrendes „zerr“"],
+"Wacholderdrossel":["Quietschendes, wenig melodisches Zwitschern","„schack-schack“-Reihen"],
+"Dorngrasmücke":["Kratziges, kurzes Zwitschern, oft im Singflug","Schnarrendes „tschäh“"],
+"Schwanzmeise":["","Hohes „sri-sri-sri“ und „tsch-tsch-tsch“-Reihen"],
+"Waldbaumläufer":["Kurze, abfallende Strophe","Langes, scharfes „tiit“"],
+"Haubenmeise":["","Trillerndes „gürr-r-r“"],
+"Weidenmeise":["Langsame, nasale „tjüh-tjüh“-Reihen","Nasales „däh-däh-däh“"],
+"Sommergoldhähnchen":["Gleichmäßige „zi-zi-zi-zi“-Reihe ohne Schnörkel","Hohes „sii“"],
+"Kernbeißer":["Kurzes, unscheinbares Gezwitscher","Scharfes „zieck“"],
+"Gimpel":["Leise, quietschend, selten zu hören","Weiches, klares „düh“"],
+"Girlitz":["Klirrendes, rasch trillerndes Zwitschern","Trillerndes „zirrlit“"],
+"Bluthänfling":["Zwitschernd, mit klirrenden Trillern","Klingendes „gäkgäkgäk“"],
+"Erlenzeisig":["Hohes Zwitschern und Trillern mit ziehenden Tönen","„tlüit“, „zi-zi“"],
+"Fichtenkreuzschnabel":["Klirrendes, aus Rufen aufgebautes Zwitschern","Hartes „gip-gip“"],
+"Rohrammer":["Kurze, abgehackte Strophe „zrit-zrit-zi“","Ziehendes „tsiu“"],
+"Baumpieper":["Singflug mit „zi-zi-zi“, dann ausklingendes „zia-zia-zia“","Raues „tiis“"],
+"Wiesenpieper":["Singflug mit beschleunigten „zip-zip-zip“","Dünnes „ist-ist“"],
+"Trauerschnäpper":["Kurze, einfache Strophen mit wechselndem Tonfall","„wit“, „tick“"],
+"Grauschnäpper":["Leiser, unauffälliger Gesang","Dünnes „zi“"],
+"Pirol":["Flötendes, lautes „düdlio“","Kratzendes „kräh“"],
+"Neuntöter":["Leises, plauderndes Gemisch mit Imitationen","Scharfes „tschäck“"],
+"Saatkrähe":["","Tiefes „kaa“, etwas rauer, oft in Kolonien"],
+"Dohle":["","Helles „kjack“"],
+"Kolkrabe":["","Tiefes, hohles „kronk“"],
+"Grünspecht":["Lachende Rufreihe „kjückjückjück“","Einzelnes „kjück“"],
+"Schwarzspecht":["","Lange „kli-ööh“-Rufe, im Flug „krü-krü-krü“"],
+"Kleinspecht":["Schnelle, hohe „kikikiki“-Reihe","„kick“"],
+"Waldkauz":["Heulendes „huu-huhuhuuuh“","Scharfes „kuwitt“"],
+"Waldohreule":["Sanftes „uh“ in Abständen","Junge: quietschendes „psiii“"],
+"Fasan":["","Hahn: lautes „körr-kock“ mit Flügelschlag"],
+"Blässhuhn":["","Scharfes „kix“, „pitsch“"],
+"Teichhuhn":["","Kurzes „krruk“"],
+"Graureiher":["","Heiseres „kraik“"],
+"Weißstorch":["Schnabelklappern","Kaum Rufe"],
+"Kiebitz":["Balzflug mit „kiewitt“","„kiwitt“"],
+"Rotmilan":["","Jodelnde, gleitende „hiääh“-Pfiffe"],
+"Teichrohrsänger":["Gleichmäßiges, ruhiges „kerr-kerr-zi-zi“","Raues „tschack“"],
+"Waldlaubsänger":["Wirbelnder, beschleunigender Triller „sirr-sirr“","Ziehendes „djü“"],
+"Schwarzkehlchen":["Kurze, kratzige Strophe von der Warte","„wit-tack“, wie Steinklopfen"],
+"Rotdrossel":["Kurze, abfallende Flötenmotive","Gedehntes „siiip“, oft nachts im Zug"],
+"Blaukehlchen":["Langes Gemisch aus Klappern und Imitationen","„tack“"],
+"Sprosser":["Lauter und schärfer als die Nachtigall","„tack“"],
+"Braunkehlchen":["Kurz, kratzend, mit Imitationen","Hartes „tick-tick“"],
+"Steinschmätzer":["Kurz und kratzig","„tjack“"],
+"Bergfink":["Gedehntes, nasales „jiiiik“","„jäck“"],
+"Grauammer":["Klirrend wie ein Schlüsselbund","„tsip“"],
+"Ortolan":["Ähnlich der Goldammer, aber tiefere Schlussnote","„tsik“"],
+"Heidelerche":["Absteigende, flötende Töne","„tlüit“"],
+"Haubenlerche":["Plaudernd und laut","„düdel-ü-dü“"],
+"Wiesenschafstelze":["","Gezogenes „pssiii“"],
+"Gebirgsstelze":["","Hohes „zizi“"],
+"Klappergrasmücke":["Klappernd, im Tempo steigend","„tak“"],
+"Sumpfrohrsänger":["Schnell, rhythmisch, mit vielen Imitationen","„tschrr“"],
+"Drosselrohrsänger":["Laut und kräftig, „karre-karre-kiet“","„krah“"],
+"Schilfrohrsänger":["Hastige Mischung aus Pfeifen und Schnarren","„tek“"],
+"Gelbspötter":["Laut, melodisch, imitierend","„dididi“"],
+"Feldschwirl":["Anhaltendes Schwirren wie eine Angelrolle, ohne Pausen",""],
+"Schlagschwirl":["Metallische, langsamere Reihen „zip-zip“",""],
+"Rohrschwirl":["Tiefes, brummendes Schwirren",""],
+"Uhu":["Tiefes „buh-hoo“ des Männchens","„huhuh“"],
+"Steinkauz":["Gedehntes, fragendes „guuik“","„kju-kju“"],
+"Sperlingskauz":["Gleichmäßige „püh“-Pfiffe","„tüit“"],
+"Raufußkauz":["Schnelle „hu-hu-hu“-Reihen","„kjak“"],
+"Schleiereule":["","Langes Kreischen „kschrääh“"],
+"Hohltaube":["Zweisilbiges „guh-huh“",""],
+"Turteltaube":["Schnurrendes „turr-turr“",""],
+"Mittelspecht":["Klagendes „quäh“","„kick“-Reihen"],
+"Grauspecht":["Absteigende „kjü-kjü-kjü“-Reihe","„kick“"],
+"Wendehals":["Nasale „gid-gid-gid“-Reihen",""],
+"Rebhuhn":["","Quietschendes „girreck“"],
+"Wachtel":["„Pick-perwick“, dreisilbig",""],
+"Wachtelkönig":["Monotones, kratzendes „crex-crex“, nachts",""],
+"Austernfischer":["Trillernde Reihe „klibitt“","Scharfes „pik“"],
+"Flussregenpfeifer":["","Weiches „pi-uh“"],
+"Großer Brachvogel":["Ansteigender, fließender Triller „curlii“","„kuii“"],
+"Waldschnepfe":["Balzflug mit „quorr-quorr“ und „pis-ik“",""],
+"Kranich":["","Trompetende „krooh“-Rufe"],
+"Lachmöwe":["","Heisere „kräh“-Lachrufe"],
+"Haubentaucher":["","Gurrendes „gerrr“ oder „kek-kek“"],
+"Zwergtaucher":["","Wieherndes Trillern"],
+"Eisvogel":["","Scharfes, hohes „tiii“ im Flug"],
+"Wasseramsel":["Plätscherndes, gedämpftes Zwitschern, auch im Winter","Scharfes „zrit“"],
+"Ziegenmelker":["Lang anhaltendes Schnurren nachts","„kuik“"]
+};
+/* Direkte Unterscheidungshilfen für typische Verwechslungen */
+const PAIRS = [
+["Zilpzalp","Fitis","Zilpzalp: gleichförmiges „zilp-zalp“ auf fast gleicher Tonhöhe. Fitis: weicher, sanft abfallender Gesang, wie eine kleine Melodie."],
+["Waldlaubsänger","Zilpzalp","Waldlaubsänger: ein wirbelnder, beschleunigender Triller. Zilpzalp: zwei abwechselnde Töne, ohne Triller."],
+["Gartengrasmücke","Mönchsgrasmücke","Mönchsgrasmücke: die Strophe endet laut und flötend. Gartengrasmücke: ruhiger, gleichmäßiger Fluss ohne diesen lauten Schluss."],
+["Amsel","Singdrossel","Amsel: tief, ruhig, weiche Flötentöne mit Pausen. Singdrossel: lauter, jedes Motiv wird mehrfach wiederholt."],
+["Misteldrossel","Singdrossel","Singdrossel wiederholt Motive und singt zusammenhängender. Misteldrossel: kürzere, schlichtere Strophen mit längeren Pausen."],
+["Blaumeise","Kohlmeise","Kohlmeise: kräftig, zweisilbig-rhythmisch „zi-zi-bä“. Blaumeise: höher und feiner, am Ende ein schneller Triller."],
+["Kohlmeise","Tannenmeise","Tannenmeise klingt wie eine höhere, schnellere und feinere Kohlmeise."],
+["Gartenrotschwanz","Hausrotschwanz","Hausrotschwanz: knirschender, kratzender Mittelteil. Gartenrotschwanz: zarter, beginnt mit einem dünnen Pfeifen."],
+["Gartenbaumläufer","Waldbaumläufer","Sehr ähnlich. Rufe helfen: Waldbaumläufer ruft lang und scharf „tiit“, Gartenbaumläufer kürzer „tit“."],
+["Sommergoldhähnchen","Wintergoldhähnchen","Wintergoldhähnchen: variable Strophe mit Schnörkel am Ende. Sommergoldhähnchen: gleichförmige Reihe ohne Schnörkel."],
+["Feldschwirl","Rohrschwirl","Rohrschwirl: tiefer und brummend. Feldschwirl: höher, wie eine rasch ablaufende Angelrolle."],
+["Feldschwirl","Schlagschwirl","Schlagschwirl: einzeln erkennbare, metallische Silben. Feldschwirl: durchgehendes Schwirren."],
+["Rohrschwirl","Schlagschwirl","Rohrschwirl: tiefes Brummen. Schlagschwirl: metallische, einzeln erkennbare Silben."],
+["Sumpfrohrsänger","Teichrohrsänger","Teichrohrsänger: gleichmäßig wiederholte Silben, ruhig. Sumpfrohrsänger: hastiger, mit vielen Imitationen anderer Vögel."],
+["Drosselrohrsänger","Teichrohrsänger","Drosselrohrsänger: deutlich lauter, tiefer und rauer."],
+["Dohle","Rabenkrähe","Dohle: hell und kurz „kjack“. Rabenkrähe: tiefer, heiserer „krah“."],
+["Kolkrabe","Rabenkrähe","Kolkrabe: tief, hohl, knarrend „kronk“. Rabenkrähe: heiseres „krah“."],
+["Rabenkrähe","Saatkrähe","Saatkrähe: eher höher und rauer, oft in Gruppen rufend. Rabenkrähe: meist einzeln oder paarweise."],
+["Ringeltaube","Türkentaube","Ringeltaube: fünf Silben mit Betonung. Türkentaube: dreisilbig „gu-guuu-gu“."],
+["Hohltaube","Ringeltaube","Hohltaube: monotones, zweisilbiges „huh-huh“. Ringeltaube: fünfsilbiger Rhythmus."],
+["Grauspecht","Grünspecht","Grünspecht: gleichbleibende Lachreihe. Grauspecht: die Reihe fällt ab und wird langsamer."],
+["Buntspecht","Kleinspecht","Kleinspecht: hohe, schnelle Rufreihe, der Trommelwirbel ist schwächer und länger. Buntspecht: kurzer, kräftiger Wirbel und „kix“."],
+["Mehlschwalbe","Rauchschwalbe","Rauchschwalbe: fließendes, melodischeres Zwitschern. Mehlschwalbe: kürzer und rauer."],
+["Baumpieper","Wiesenpieper","Baumpieper: Singflug, am Ende gleitende „zia-zia“-Töne. Wiesenpieper: „zip“-Reihe, die schneller wird."],
+["Waldkauz","Waldohreule","Waldkauz: heulend und auffällig. Waldohreule: leises, gleichmäßiges „uh“ in Abständen."],
+["Feldlerche","Heidelerche","Feldlerche: lang und ununterbrochen im Singflug. Heidelerche: kürzere, absteigende, flötende Strophen."]
+];
+const pairHint = (a,b) => { const p = PAIRS.find(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a)); return p ? p[2] : ""; };
+
+/* ---------- Autocomplete & Großschreibung ---------- */
+const SUGG_ITEMS = [
+  ...SPECIES.map(s=>({label:s.de, key:norm(s.de), words:s.de.split(/[\s\/-]+/).map(norm), tag:""})),
+  ...Object.keys(GROUPS).map(g=>({label:g, key:norm(g), words:g.split(/[\s\/-]+/).map(norm), tag:"Gruppe"}))
+];
+function suggest(q){
+  const n = norm(q); if(!n) return [];
+  const res = [];
+  SUGG_ITEMS.forEach(it=>{
+    let r = -1;
+    if(it.key.startsWith(n)) r = 0;
+    else if(it.words.some(w=>w.startsWith(n))) r = 1;
+    else if(n.length>=3 && it.key.includes(n)) r = 2;
+    if(r>=0) res.push([r,it]);
+  });
+  res.sort((a,b)=>a[0]-b[0] || a[1].label.localeCompare(b[1].label,"de"));
+  return res.slice(0,6).map(x=>x[1]);
+}
+function hideSugg(){ $("sugg").classList.add("hidden"); $("sugg").innerHTML = ""; }
+function renderSugg(){
+  const box = $("sugg"), items = suggest($("answer").value);
+  box.innerHTML = "";
+  if(!items.length || state.answered){ box.classList.add("hidden"); return; }
+  items.forEach(it=>{
+    const b = document.createElement("button"); b.type = "button";
+    b.append(it.label);
+    if(it.tag){ b.append(" "); const s = document.createElement("small"); s.textContent = "(" + it.tag + ")"; b.append(s); }
+    b.addEventListener("pointerdown", e=>e.preventDefault()); // Tastatur bleibt offen
+    b.addEventListener("click", ()=>{ $("answer").value = it.label; hideSugg(); $("answer").focus(); });
+    box.appendChild(b);
+  });
+  box.classList.remove("hidden");
+}
+$("answer").addEventListener("input", ()=>{
+  const el = $("answer"), v = el.value;
+  if(v && v[0] !== v[0].toUpperCase()){
+    const pos = el.selectionStart;
+    el.value = v[0].toUpperCase() + v.slice(1);
+    try{ el.setSelectionRange(pos,pos); }catch(e){}
+  }
+  renderSugg();
+});
+
+/* ---------- Auswertung (Lernfortschritt) ---------- */
+let stats = {v:1, species:{}, rounds:[]};
+try{ const j = JSON.parse(store.get("xc_stats")||"null"); if(j && j.species) stats = j; }catch(e){}
+if(!Array.isArray(stats.rounds)) stats.rounds = [];
+const saveStats = () => store.set("xc_stats", JSON.stringify(stats));
+
+function recordResult(sp, pts, result){
+  const s = stats.species[sp.latin] || (stats.species[sp.latin] = {n:0, pts:0, full:0, helped:0, group:0, wrong:0, hist:[], last:0});
+  s.n++; s.pts += pts;
+  if(pts===3) s.full++; else if(pts===1) { if(result==="group") s.group++; else s.helped++; } else s.wrong++;
+  s.hist.push(pts); if(s.hist.length>10) s.hist.shift();
+  s.last = Date.now();
+  saveStats();
+}
+const rateOf = s => s.n ? s.pts/(3*s.n) : 0;
+const recentRate = s => { const h = s.hist.slice(-5); return h.length ? h.reduce((a,b)=>a+b,0)/(3*h.length) : 0; };
+const pct = x => Math.round(x*100) + " %";
+
+function renderStats(){
+  const entries = SPECIES.map(sp=>({sp, s:stats.species[sp.latin]})).filter(e=>e.s && e.s.n>0);
+  const totN = entries.reduce((a,e)=>a+e.s.n,0), totP = entries.reduce((a,e)=>a+e.s.pts,0);
+  $("statSummary").textContent = totN
+    ? `${totN} Fragen · ${pct(totP/(3*totN))} der möglichen Punkte · ${stats.rounds.length} Runden · ${entries.length} von ${SPECIES.length} Arten geübt`
+    : "Noch keine Daten. Spiele eine Runde, dann erscheint hier deine Auswertung.";
+  if(settings.sort==="alpha") entries.sort((a,b)=>a.sp.de.localeCompare(b.sp.de,"de"));
+  else if(settings.sort==="count") entries.sort((a,b)=>b.s.n-a.s.n || rateOf(a.s)-rateOf(b.s));
+  else entries.sort((a,b)=>rateOf(a.s)-rateOf(b.s) || b.s.n-a.s.n);
+
+  const list = $("statList"); list.innerHTML = "";
+  entries.forEach(({sp,s})=>{
+    const r = rateOf(s);
+    const row = document.createElement("div"); row.className = "statrow";
+    const top = document.createElement("div"); top.className = "top";
+    const nm = document.createElement("strong"); nm.textContent = sp.de;
+    const pc = document.createElement("span"); pc.textContent = pct(r);
+    top.append(nm, pc);
+    const bar = document.createElement("div"); bar.className = "bar";
+    const fill = document.createElement("i"); fill.style.width = Math.round(r*100)+"%";
+    fill.className = r<0.4 ? "lo" : r>=0.75 ? "hi" : "";
+    bar.appendChild(fill);
+    const sm = document.createElement("small");
+    sm.textContent = `${s.n}× abgefragt · ohne Hilfe richtig: ${s.full}× · letzte ${Math.min(5,s.hist.length)}: ${pct(recentRate(s))}` + (s.n<3 ? " · wenig Daten" : "");
+    row.append(top, bar, sm); list.appendChild(row);
+  });
+
+  const untouched = SPECIES.filter(sp=>!(stats.species[sp.latin] && stats.species[sp.latin].n>0));
+  $("untouched").classList.toggle("hidden", untouched.length===0);
+  $("untouchedSum").textContent = `Noch nicht geübt (${untouched.length})`;
+  $("untouchedList").textContent = untouched.map(s=>s.de).join(", ");
+
+  const rl = $("roundList"); rl.innerHTML = "";
+  stats.rounds.slice(-8).reverse().forEach(r=>{
+    const li = document.createElement("li");
+    const d = new Date(r.t).toLocaleDateString("de-DE");
+    const what = r.mode==="groups" ? "Gruppen" : LEVEL_NAMES[Number(r.level)] || "";
+    li.textContent = `${d} · ${r.score} von ${r.max} Punkten · ${what}`;
+    rl.appendChild(li);
+  });
+  if(!stats.rounds.length){ const li = document.createElement("li"); li.textContent = "Noch keine Runden."; rl.appendChild(li); }
+}
+function openStats(){ renderStats(); show("stats"); }
+$("openStats").addEventListener("click", openStats);
+$("endToStats").addEventListener("click", openStats);
+$("statBack").addEventListener("click", ()=>show("setup"));
+
+$("exportBtn").addEventListener("click", ()=>{
+  const txt = JSON.stringify(stats);
+  $("backupBox").value = txt;
+  $("backupBox").select();
+  let msg = "Export steht im Feld. ";
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>{ $("backupMsg").textContent = "Export steht im Feld und wurde kopiert."; }).catch(()=>{});
+  }
+  $("backupMsg").textContent = msg + "Markiere den Text und kopiere ihn bei Bedarf.";
+});
+$("importBtn").addEventListener("click", ()=>{
+  try{
+    const j = JSON.parse($("backupBox").value);
+    if(!j || typeof j.species !== "object") throw new Error("Format");
+    if(!confirm("Die bestehende Auswertung wird durch den Import ersetzt. Fortfahren?")) return;
+    stats = {v:1, species:j.species, rounds:Array.isArray(j.rounds)?j.rounds:[]};
+    saveStats(); renderStats();
+    $("backupMsg").textContent = "Import erfolgreich.";
+  }catch(e){ $("backupMsg").textContent = "Der Text im Feld ist kein gültiger Export."; }
+});
+$("resetBtn").addEventListener("click", ()=>{
+  if(!confirm("Die gesamte Auswertung wirklich löschen?")) return;
+  stats = {v:1, species:{}, rounds:[]}; saveStats(); renderStats();
+  $("backupMsg").textContent = "Auswertung zurückgesetzt.";
+});
+
 /* ---------- Spielablauf ---------- */
 let state = null;
 function freshState(){
   return { queue:[], idx:0, planned:0, asked:0, score:0, skipped:[], missed:[],
            counts:{full:0, helped:0, group:0, wrong:0},
-           cur:null, rec:null, hint:false, mc:false, answered:false };
+           cur:null, rec:null, hint:false, mc:false, answered:false, logged:false, endless:false, pool:[] };
 }
 function show(name){
-  ["setup","game","end"].forEach(n=>$(n).classList.toggle("hidden", n!==name));
+  ["setup","game","end","stats"].forEach(n=>$(n).classList.toggle("hidden", n!==name));
 }
 function startRound(){
   const key = $("key").value.trim();
@@ -564,30 +924,50 @@ function startRound(){
     pool = SPECIES.filter(s=>s.tier===Number(settings.level));
   }
   pool = shuffle(pool);
-  const n = settings.len==="all" ? pool.length : Math.min(Number(settings.len), pool.length);
+  const endless = settings.len === "endless";
+  const n = endless ? pool.length : Math.min(Number(settings.len), pool.length);
   state = freshState();
-  state.queue = pool.slice(0, n);
-  state.planned = n;
+  state.endless = endless;
+  state.pool = pool.slice();
+  state.queue = endless ? [] : pool.slice(0, n);
+  state.planned = endless ? 0 : n;
   show("game");
   nextRound();
+}
+
+// Endlos-Modus: jede Frage wird unabhängig aus dem gesamten Pool gezogen
+// (Wiederholungen, auch direkt hintereinander, sind möglich).
+function ensureQueue(){
+  if(state.idx < state.queue.length) return true;
+  if(!state.endless || !state.pool.length) return false;
+  state.queue = [state.pool[Math.floor(Math.random()*state.pool.length)]];
+  state.idx = 0;
+  return true;
 }
 
 async function nextRound(){
   $("error").textContent = "";
   $("feedback").classList.add("hidden");
+  $("diffBox").classList.add("hidden");
   $("audio").pause();
   $("status").textContent = "Lade Aufnahme …";
   $("typed").classList.add("hidden");
+  hideSugg();
   $("choices").classList.add("hidden");
   $("aids").classList.add("hidden");
   $("hintBox").classList.add("hidden");
   state.answered = true; // bis eine Aufnahme geladen ist, keine Eingabe
 
   try{
-    while(state.idx < state.queue.length){
+    while(ensureQueue()){
       const sp = state.queue[state.idx];
       const recs = await getRecordings(sp);
-      if(!recs.length){ state.idx++; state.planned--; state.skipped.push(sp); continue; }
+      if(!recs.length){
+        state.idx++;
+        if(state.endless) state.pool = state.pool.filter(x=>x!==sp); else state.planned--;
+        state.skipped.push(sp);
+        continue;
+      }
       state.idx++;
       state.cur = sp;
       state.rec = recs[Math.floor(Math.random()*recs.length)];
@@ -615,7 +995,7 @@ async function nextRound(){
 }
 
 function updateScore(){
-  $("progress").textContent = `Frage ${Math.min(state.asked+1, state.planned)} von ${state.planned}`;
+  $("progress").textContent = state.endless ? `Frage ${state.asked+1}` : `Frage ${Math.min(state.asked+1, state.planned)} von ${state.planned}`;
   $("score").textContent = `Punkte: ${state.score}`;
 }
 
@@ -631,7 +1011,7 @@ $("mcBtn").addEventListener("click", ()=>{
   if(state.answered) return;
   state.mc = true;
   $("mcBtn").disabled = true;
-  $("typed").classList.add("hidden");
+  $("typed").classList.add("hidden"); hideSugg();
   const box = $("choices"); box.innerHTML = ""; box.classList.remove("hidden");
   shuffle([state.cur, ...distractors(state.cur)]).forEach(sp=>{
     const b = document.createElement("button");
@@ -656,7 +1036,7 @@ function answerMC(btn, sp){
   const ok = sp.latin === state.cur.latin;
   lockChoices();
   if(!ok) btn.classList.add("wrong");
-  finish(ok ? "exact" : "wrong", sp.de);
+  finish(ok ? "exact" : "wrong", sp.de, sp);
 }
 
 $("typed").addEventListener("submit", e=>{
@@ -665,11 +1045,17 @@ $("typed").addEventListener("submit", e=>{
   const t = $("answer").value.trim();
   const res = judge(t, state.cur);
   if(res==="empty") return;
-  finish(res, t);
+  hideSugg();
+  let guess = null;
+  if(res==="wrong"){
+    const hit = m => SPECIES.find(s=>s!==state.cur && judge(t,s)===m);
+    guess = hit("exact") || hit("close") || null;
+  }
+  finish(res, t, guess);
 });
 $("skip").addEventListener("click", ()=>{ if(!state.answered) finish("skip",""); });
 
-function finish(result, typedText){
+function finish(result, typedText, guess){
   if(state.answered) return;
   state.answered = true;
   state.asked++;
@@ -693,6 +1079,8 @@ function finish(result, typedText){
     state.counts.wrong++;
   }
   state.score += pts;
+  recordResult(sp, pts, result);
+  hideSugg();
   if(pts < 3) state.missed.push(sp);
   updateScore();
 
@@ -708,20 +1096,55 @@ function finish(result, typedText){
 
   $("answer").disabled = true; $("check").disabled = true; $("skip").disabled = true;
   $("hintBtn").disabled = true; $("mcBtn").disabled = true;
-  const last = state.idx >= state.queue.length;
+  const canDiff = result==="wrong" && guess && guess.latin !== sp.latin;
+  $("diffBtn").classList.toggle("hidden", !canDiff);
+  $("diffBtn").textContent = "Unterschiede anzeigen";
+  $("diffBox").classList.add("hidden");
+  if(canDiff) renderDiff(guess);
+  const last = !state.endless && state.idx >= state.queue.length;
   $("next").textContent = last ? "Ergebnis anzeigen" : "Nächste Aufnahme";
   $("feedback").classList.remove("hidden");
   $("next").focus({preventScroll:true});
 }
 
+function renderDiff(guess){
+  const box = $("diffBox"); box.textContent = "";
+  const cur = state.cur;
+  const t = (state.rec && state.rec.type ? state.rec.type : "").toLowerCase();
+  const callFirst = settings.kind==="call" || (t.includes("call") && !t.includes("song"));
+  const add = (tag, text, cls) => { const e = document.createElement(tag); e.textContent = text; if(cls) e.className = cls; box.appendChild(e); };
+  const hint = pairHint(cur.de, guess.de);
+  if(hint) add("p", hint, "pair");
+  [[cur,"gesucht"],[guess,"dein Tipp"]].forEach(([sp,role])=>{
+    const d = SOUND[sp.de] || ["",""];
+    add("h4", `${sp.de} (${role})`);
+    const lines = [["Gesang", d[0]],["Ruf", d[1]]];
+    if(callFirst) lines.reverse();
+    lines.forEach(([k,v])=>{ if(v) add("p", `${k}: ${v}`); });
+    if(!d[0] && !d[1]) add("p", "Keine Hinweise gespeichert.");
+  });
+  add("p", "Stichworte als Gedächtnisstütze. Lautmalerei klingt für jeden anders, vergleiche am besten mit den Aufnahmen auf xeno-canto.", "meta");
+}
+$("diffBtn").addEventListener("click", ()=>{
+  const box = $("diffBox"), open = box.classList.contains("hidden");
+  box.classList.toggle("hidden", !open);
+  $("diffBtn").textContent = open ? "Unterschiede ausblenden" : "Unterschiede anzeigen";
+});
+
 $("next").addEventListener("click", ()=>{
-  if(state.idx >= state.queue.length) showEnd(); else nextRound();
+  if(!state.endless && state.idx >= state.queue.length) showEnd(); else nextRound();
 });
 $("quit").addEventListener("click", showEnd);
 
 /* ---------- Ergebnis ---------- */
 function showEnd(){
   $("audio").pause();
+  if(state.asked>0 && !state.logged){
+    state.logged = true;
+    stats.rounds.push({t:Date.now(), score:state.score, max:state.asked*3, n:state.asked, mode:settings.mode, level:settings.level, kind:settings.kind});
+    if(stats.rounds.length>100) stats.rounds.shift();
+    saveStats();
+  }
   const max = state.asked * 3;
   show("end");
   $("endScore").textContent = max ? `${state.score} von ${max} Punkten` : "Keine Frage beantwortet";
